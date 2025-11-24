@@ -1,4 +1,4 @@
-package homeaq.dothattask
+package homeaq.dothattask.data
 
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable

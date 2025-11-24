@@ -1,5 +1,6 @@
 package homeaq.dothattask
 
+import homeaq.dothattask.Controller.taskRoutes
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -25,5 +26,7 @@ fun Application.configureRouting() {
         }
         // Static plugin. Try to access `/static/index.html`
         staticResources("/static", "static")
+
+        taskRoutes()
     }
 }

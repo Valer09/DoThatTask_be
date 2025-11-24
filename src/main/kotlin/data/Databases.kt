@@ -21,7 +21,16 @@ fun Application.configureDatabases() {
             val id = cityService.create(city)
             call.respond(HttpStatusCode.Created, id)
         }
-    
+
+
+        get("/cities") {
+            try {
+                call.respond(HttpStatusCode.OK, cityService.all())
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.NotFound)
+            }
+        }
+
         // Read city
         get("/cities/{id}") {
             val id = call.parameters["id"]?.toInt() ?: throw IllegalArgumentException("Invalid ID")

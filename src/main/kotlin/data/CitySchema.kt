@@ -39,6 +39,24 @@ class CityService(private val connection: Connection) {
         }
     }
 
+
+    // Read a city
+    suspend fun all(): List<City> = withContext(Dispatchers.IO) {
+        val statement = connection.prepareStatement("SELECT name, population FROM cities")
+        val resultSet = statement.executeQuery()
+
+        val cities = mutableListOf<City>()
+
+        while (resultSet.next()) {
+            val name = resultSet.getString("name")
+            val population = resultSet.getInt("population")
+
+            cities.add(City(name, population))
+        }
+
+        return@withContext cities
+    }
+
     // Read a city
     suspend fun read(id: Int): City = withContext(Dispatchers.IO) {
         val statement = connection.prepareStatement(SELECT_CITY_BY_ID)

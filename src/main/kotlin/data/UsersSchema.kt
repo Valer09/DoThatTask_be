@@ -1,5 +1,4 @@
 package homeaq.dothattask.data
-
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.*

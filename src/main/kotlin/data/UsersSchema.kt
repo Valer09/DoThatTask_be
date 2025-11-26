@@ -1,61 +1,49 @@
 package homeaq.dothattask.data
-import kotlinx.coroutines.Dispatchers
-import kotlinx.serialization.Serializable
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
-import org.jetbrains.exposed.sql.transactions.transaction
+import homeaq.dothattask.Model.PasswordHash
+import homeaq.dothattask.Model.Task
+import homeaq.dothattask.Model.User
+import homeaq.dothattask.Model.TaskUpdate
+import java.sql.Connection
 
-@Serializable
-data class ExposedUser(val name: String, val age: Int)
 
-class UserService(database: Database) {
-    object Users : Table() {
-        val id = integer("id").autoIncrement()
-        val name = varchar("name", length = 50)
-        val age = integer("age")
+sealed class UsersSchema
+{
+    companion object
+    {
+        const val CREATE_TABLE_USERS =
+            "CREATE TABLE IF NOT EXISTS USERS (ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
+                    "name TEXT NOT NULL, " +
+                    "username TEXT NOT NULL UNIQUE," +
+                    "password_hash TEXT NOT NULL," +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
 
-        override val primaryKey = PrimaryKey(id)
+        const val SELECT_USER_BY_USERNAME = "SELECT * FROM users WHERE username = ?"
+        const val GET_PASSWORD_HASH_BY_USERNAME = "SELECT password_hash FROM users WHERE username = ?"
     }
+}
 
-    init {
-        transaction(database) {
-            SchemaUtils.create(Users)
+class UserTableSeedH2(private val connection: Connection) : ITableSeed
+{
+    private var users = listOf(
+        User(name = "Valerio", username = "valerio99", password_hash = PasswordHash.hashPassword("password1")),
+        User(name = "Jasmin", username = "jasmin99", password_hash = PasswordHash.hashPassword("password2")),
+    )
+
+    override fun seed()
+    {
+        val statement = connection.prepareStatement("INSERT INTO users (name, username, password_hash) VALUES (?, ?, ?)")
+
+        users.forEach {
+            statement.setString(1, it.name)
+            statement.setString(2, it.username)
+            statement.setString(3, it.password_hash)
+            statement.executeUpdate()
         }
     }
+}
 
-    suspend fun create(user: ExposedUser): Int = dbQuery {
-        Users.insert {
-            it[name] = user.name
-            it[age] = user.age
-        }[Users.id]
-    }
-
-    suspend fun read(id: Int): ExposedUser? {
-        return dbQuery {
-            Users.selectAll()
-                .where { Users.id eq id }
-                .map { ExposedUser(it[Users.name], it[Users.age]) }
-                .singleOrNull()
-        }
-    }
-
-    suspend fun update(id: Int, user: ExposedUser) {
-        dbQuery {
-            Users.update({ Users.id eq id }) {
-                it[name] = user.name
-                it[age] = user.age
-            }
-        }
-    }
-
-    suspend fun delete(id: Int) {
-        dbQuery {
-            Users.deleteWhere { Users.id.eq(id) }
-        }
-    }
-
-    private suspend fun <T> dbQuery(block: suspend () -> T): T =
-        newSuspendedTransaction(Dispatchers.IO) { block() }
+class UserTableSeedPostgres(private val connection: Connection) : ITableSeed
+{
+    override fun seed(){}
 }
 

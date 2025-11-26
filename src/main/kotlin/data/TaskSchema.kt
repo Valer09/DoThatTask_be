@@ -3,45 +3,31 @@ package homeaq.dothattask.data
 import homeaq.dothattask.Model.Task
 import homeaq.dothattask.Model.TaskCategory
 import homeaq.dothattask.Model.TaskStatus
-import homeaq.dothattask.Model.TaskUpdate
 import java.sql.Connection
 
-class TaskService(private val taskRepository: TaskRepository)
+
+sealed class TasksSchema
 {
+    companion object {
+        const val CREATE_TABLE_TASKS =
+            "CREATE TABLE IF NOT EXISTS TASKS (ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, " +
+                    "name TEXT NOT NULL UNIQUE, " +
+                    "category INTEGER NOT NULL," +
+                    "status INTEGER NOT NULL," +
+                    "description TEXT);"
+        const val SELECT_TASK_BY_ID = "SELECT * FROM tasks WHERE id = ?"
+        const val SELECT_TASK_BY_NAME = "SELECT * FROM tasks WHERE name = ?"
+        const val INSERT_TASK = "INSERT INTO tasks (name, category, status, description) VALUES (?, ?, ?, ?)"
+        const val UPDATE_TASK = "UPDATE tasks SET name = ?, category = ?, status = ?, description = ? WHERE name = ?"
+        const val DELETE_TASK = "DELETE FROM tasks WHERE name = ?"
 
-    suspend fun all(): DataResponse<List<Task>> = DataResponse.success(taskRepository.allTasks())
-    suspend fun read(name : String): DataResponse<Task?> = taskRepository.taskByName(name) ?.let {DataResponse.success(taskRepository.taskByName(name))}?: DataResponse.notFound()
-
-    suspend fun addOrUpdate(taskUpdate: TaskUpdate): DataResponse<Task>
-    {
-        val newTask = Task.createFromTaskUpdate(taskUpdate)
-        taskRepository.taskByName(taskUpdate.oldName) ?: return create(newTask)
-
-        taskRepository.update(newTask, taskUpdate.oldName)
-
-        return DataResponse.success(newTask, "Task updated successfully")
     }
-
-    suspend fun delete(name: String): DataResponse<out Any>
-    {
-        val check = read(name)
-
-        if(check.result == DataResult.NOT_FOUND) return DataResponse.notFound("Given task doesn't exists already")
-
-        return DataResponse.success(taskRepository.delete(name))
-    }
-
-    private suspend fun create(task: Task): DataResponse<Task> = taskRepository.create(task).takeIf { it == -1 }?.let{ DataResponse.databaseError("Unable to retrieve the id of the newly inserted task") }?: DataResponse.success(task, "Task created successfully")
 }
 
-public interface ITaskTableSeed
-{
-    fun seed()
-}
 
-class TaskTableSeedH2(private val connection: Connection) : ITaskTableSeed
+class TaskTableSeedH2(private val connection: Connection) : ITableSeed
 {
-    private var tasks = listOf(
+    private val tasks = listOf(
         Task("Cleaning", "Clean the house", TaskCategory.Career, TaskStatus.TODO),
         Task("Gardening", "Mow the lawn", TaskCategory.Career,TaskStatus.TODO),
         Task("Shopping", "Buy the groceries", TaskCategory.Career,TaskStatus.TODO),
@@ -68,7 +54,7 @@ class TaskTableSeedH2(private val connection: Connection) : ITaskTableSeed
     }
 }
 
-class TaskTableSeedPostgres(private val connection: Connection) : ITaskTableSeed
+class TaskTableSeedPostgres(private val connection: Connection) : ITableSeed
 {
     override fun seed(){}
 }

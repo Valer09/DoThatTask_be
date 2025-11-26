@@ -37,4 +37,6 @@ dependencies {
     implementation("io.insert-koin:koin-ktor:3.5.0")
     implementation("io.insert-koin:koin-logger-slf4j:3.5.0")
 
+    implementation("at.favre.lib:bcrypt:0.10.2")
+
 }

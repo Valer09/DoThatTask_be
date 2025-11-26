@@ -4,7 +4,7 @@ import homeaq.dothattask.Model.Task
 import homeaq.dothattask.Model.TaskUpdate
 import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.DataResult
-import homeaq.dothattask.data.TaskService
+import homeaq.dothattask.data.service.TaskService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.JsonConvertException
 import io.ktor.server.application.Application

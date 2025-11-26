@@ -1,9 +1,12 @@
 package homeaq.dothattask
 
-import homeaq.dothattask.data.TaskRepository
-import homeaq.dothattask.data.TaskService
+import homeaq.dothattask.data.repository.TaskRepository
+import homeaq.dothattask.data.service.TaskService
 import homeaq.dothattask.data.TaskTableSeedH2
 import homeaq.dothattask.data.TaskTableSeedPostgres
+import homeaq.dothattask.data.repository.UserRepository
+import homeaq.dothattask.data.UserTableSeedH2
+import homeaq.dothattask.data.UserTableSeedPostgres
 import io.ktor.server.application.Application
 import io.ktor.server.application.log
 import org.koin.dsl.module
@@ -45,5 +48,6 @@ val appModule = module {
     }
 
     single<TaskRepository> { TaskRepository(get(), if (get<Boolean>()) TaskTableSeedH2(get()) else TaskTableSeedPostgres(get())) }
+    single<UserRepository> { UserRepository(get(), if (get<Boolean>()) UserTableSeedH2(get()) else UserTableSeedPostgres(get())) }
     single<TaskService> { TaskService(get()) }
 }

@@ -1,6 +1,7 @@
 package homeaq.dothattask
 
 import homeaq.dothattask.Controller.taskRoutes
+import homeaq.dothattask.Controller.userRoutes
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.http.content.*
@@ -23,5 +24,6 @@ fun Application.configureRouting() {
         staticResources("/static", "static")
 
         taskRoutes()
+        userRoutes()
     }
 }

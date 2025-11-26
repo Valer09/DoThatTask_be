@@ -27,21 +27,21 @@ sealed class TasksSchema
 
 class TaskTableSeedH2(private val connection: Connection) : ITableSeed
 {
-    private val tasks = listOf(
-        Task("Cleaning", "Clean the house", TaskCategory.Career, TaskStatus.TODO),
-        Task("Gardening", "Mow the lawn", TaskCategory.Career,TaskStatus.TODO),
-        Task("Shopping", "Buy the groceries", TaskCategory.Career,TaskStatus.TODO),
-        Task("Painting", "Paint the fence", TaskCategory.Health,TaskStatus.COMPLETED),
-        Task("Cooking", "Cook the dinner", TaskCategory.Social,TaskStatus.TODO),
-        Task("Relaxing", "Take a walk", TaskCategory.Career,TaskStatus.TODO),
-        Task("Exercising", "Go to the gym", TaskCategory.Social,TaskStatus.TODO),
-        Task("Learning", "Read a book", TaskCategory.Career,TaskStatus.ACTIVE),
-        Task("Snoozing", "Go for a nap", TaskCategory.Career,TaskStatus.TODO),
-        Task("Socializing", "Go to a party", TaskCategory.Health,TaskStatus.TODO),
-    )
-
     override fun seed()
     {
+        val tasks = listOf(
+            Task("Cleaning", "Clean the house", TaskCategory.Career, TaskStatus.TODO),
+            Task("Gardening", "Mow the lawn", TaskCategory.Career,TaskStatus.TODO),
+            Task("Shopping", "Buy the groceries", TaskCategory.Career,TaskStatus.TODO),
+            Task("Painting", "Paint the fence", TaskCategory.Health,TaskStatus.COMPLETED),
+            Task("Cooking", "Cook the dinner", TaskCategory.Social,TaskStatus.TODO),
+            Task("Relaxing", "Take a walk", TaskCategory.Career,TaskStatus.TODO),
+            Task("Exercising", "Go to the gym", TaskCategory.Social,TaskStatus.TODO),
+            Task("Learning", "Read a book", TaskCategory.Career,TaskStatus.ACTIVE),
+            Task("Snoozing", "Go for a nap", TaskCategory.Career,TaskStatus.TODO),
+            Task("Socializing", "Go to a party", TaskCategory.Health,TaskStatus.TODO),
+        )
+
         val statement = connection.prepareStatement("INSERT INTO tasks (name, category, status, description) VALUES (?, ?, ?, ?)")
 
         tasks.forEach {

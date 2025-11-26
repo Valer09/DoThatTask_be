@@ -24,13 +24,13 @@ sealed class UsersSchema
 
 class UserTableSeedH2(private val connection: Connection) : ITableSeed
 {
-    private var users = listOf(
-        User(name = "Valerio", username = "valerio99", password_hash = PasswordHash.hashPassword("password1")),
-        User(name = "Jasmin", username = "jasmin99", password_hash = PasswordHash.hashPassword("password2")),
-    )
-
     override fun seed()
     {
+        val users = listOf(
+            User(name = "Valerio", username = "valerio99", password_hash = PasswordHash.hashPassword("password1")),
+            User(name = "Jasmin", username = "jasmin99", password_hash = PasswordHash.hashPassword("password2")),
+        )
+
         val statement = connection.prepareStatement("INSERT INTO users (name, username, password_hash) VALUES (?, ?, ?)")
 
         users.forEach {

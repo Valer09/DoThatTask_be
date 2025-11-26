@@ -24,6 +24,11 @@ fun Application.userRoutes()
                 return@get
             }
 
+            get("/usersLessMe") {
+                call.respond(HttpStatusCode.OK, userRepository.all().filterNot(){ it.username == "valerio99"}) // MUST BE REPLACED WITH SESSION USERNAME
+                return@get
+            }
+
            /* get("/passwordByUsername/{username}") {
                 val username = call.parameters["username"]
                 call.respond(HttpStatusCode.OK, userRepository.passwordHashByUsername(username!!))

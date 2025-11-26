@@ -1,5 +1,8 @@
 package homeaq.dothattask.data.repository
 
+import homeaq.dothattask.Model.Task
+import homeaq.dothattask.Model.TaskCategory
+import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.Model.User
 import homeaq.dothattask.data.ITableSeed
 import homeaq.dothattask.data.UsersSchema
@@ -16,6 +19,30 @@ class UserRepository(private val connection: Connection, private val seeder: ITa
         val statement = connection.createStatement()
         statement.executeUpdate(UsersSchema.Companion.CREATE_TABLE_USERS)
         seeder.seed()
+    }
+
+    suspend fun all(): List<User> = withContext(Dispatchers.IO)
+    {
+        val statement = connection.prepareStatement(UsersSchema.SELECT_ALL)
+
+        val resultSet = statement.executeQuery()
+
+        val result = mutableListOf<User>()
+        while (resultSet.next()) {
+            result.add(
+                User(
+                    resultSet.getString("name"),
+                    resultSet.getString("username"),
+
+                    // DO YOU REALLY NEED?
+                    //resultSet.getString("password_hash"),
+
+                    "better_not"
+                )
+            )
+        }
+
+        return@withContext result
     }
 
     suspend fun userByUsername(username: String): User? = withContext(Dispatchers.IO)

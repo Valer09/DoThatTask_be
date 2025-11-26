@@ -1,12 +1,16 @@
 package homeaq.dothattask.Controller
 
 import homeaq.dothattask.Model.Task
+import homeaq.dothattask.Model.TaskUpdate
+import homeaq.dothattask.data.DataResponse
+import homeaq.dothattask.data.DataResult
 import homeaq.dothattask.data.TaskService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.JsonConvertException
 import io.ktor.server.application.Application
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
+import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -21,44 +25,52 @@ fun Application.taskRoutes()
     routing {
         route("/tasks") {
             get {
-                val tasks = taskService.all()
-                call.respond(tasks)
-            }
-            get("/byId/{id}") {
-                val id = call.parameters["id"]
-                if (id == null) {
+                call.respond(HttpStatusCode.OK, taskService.all().data!!)
+                return@get
+                }
+
+            get("/byName/{name}") {
+                val name = call.parameters["name"]
+                if (name.isNullOrEmpty()) {
                     call.respond(HttpStatusCode.BadRequest)
                     return@get
                 }
-                val task = taskService.read(Integer.parseInt(id))
-                if (task == null) {
+                val task = taskService.read(name)
+                if (task.result == DataResult.NOT_FOUND) {
                     call.respond(HttpStatusCode.NotFound)
                     return@get
                 }
-                call.respond(task)
+                call.respond(HttpStatusCode.OK, task.data!!)
             }
 
             post {
                 try {
-                    val task = call.receive<Task>()
-                    taskService.addOrUpdate(task)
-                    call.respond(HttpStatusCode.NoContent)
-                } catch (ex: IllegalStateException) {
+                    val task = call.receive<TaskUpdate>()
+                    val response = taskService.addOrUpdate(task)
+
+                    if(response.isSuccessful()) call.respond(HttpStatusCode.OK, response.data!!)
+                    else handleErrorResponse(response)
+                }
+                catch (ex: IllegalStateException)
+                {
                     call.respond(HttpStatusCode.BadRequest)
-                } catch (ex: JsonConvertException) {
+                } catch (ex: JsonConvertException)
+                {
                     call.respond(HttpStatusCode.BadRequest)
                 }
             }
-            delete("/{id}") {
-                val id = call.parameters["id"]
-                if (id == null) {
+
+            delete("/{name}") {
+                val name = call.parameters["name"]
+                if (name.isNullOrEmpty()) {
                     call.respond(HttpStatusCode.BadRequest)
                     return@delete
                 }
                 try
                 {
-                    taskService.delete(Integer.parseInt(id))
-                    call.respond(HttpStatusCode.OK)
+                    val response = taskService.delete(name)
+                    if(response.isSuccessful()) call.respond(HttpStatusCode.OK)
+                    else call.respond(HttpStatusCode.NotFound, response.message)
                 }
                 catch (ex: Exception)
                 {
@@ -66,5 +78,15 @@ fun Application.taskRoutes()
                 }
             }
         }
+    }
+}
+
+private suspend fun RoutingContext.handleErrorResponse(response: DataResponse<Task>)
+{
+    when(response.result)
+    {
+        DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, response.message)
+        DataResult.VALIDATION_ERROR -> call.respond(HttpStatusCode.BadRequest, response.message)
+        else -> call.respond(HttpStatusCode.InternalServerError, response.message)
     }
 }

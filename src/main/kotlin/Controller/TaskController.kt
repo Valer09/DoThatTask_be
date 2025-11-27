@@ -38,6 +38,18 @@ fun Application.taskRoutes()
                 return@get
             }
 
+            get("/assignedTask") {
+                val task = taskService.assignedTask()
+
+                if (task.result == DataResult.NOT_FOUND) {
+                    call.respond(HttpStatusCode.NotFound)
+                    return@get
+                }
+
+                call.respond(HttpStatusCode.OK, task.data!!)
+                return@get
+            }
+
             get("/byName/{name}") {
                 val name = call.parameters["name"]
                 if (name.isNullOrEmpty()) {
@@ -58,6 +70,63 @@ fun Application.taskRoutes()
                     val response = taskService.addOrUpdate(task)
 
                     if(response.isSuccessful()) call.respond(HttpStatusCode.OK, response.data!!)
+                    else handleErrorResponse(response)
+                }
+                catch (ex: IllegalStateException)
+                {
+                    call.respond(HttpStatusCode.BadRequest)
+                } catch (ex: JsonConvertException)
+                {
+                    call.respond(HttpStatusCode.BadRequest)
+                }
+            }
+
+            post("/pickTask"){
+                try {
+
+                    val response = taskService.pickTask()
+                    if(response.result == DataResult.NOT_FOUND)return@post call.respond(HttpStatusCode.NotFound, message = "No tasks assigned to this user")
+
+                    val assTask = taskService.assignedTask()
+
+                    if (assTask.result == DataResult.NOT_FOUND) return@post call.respond(HttpStatusCode.InternalServerError)
+                    return@post call.respond(HttpStatusCode.OK, assTask.data!!)
+                }
+                catch (ex: IllegalStateException)
+                {
+                    call.respond(HttpStatusCode.BadRequest)
+                } catch (ex: JsonConvertException)
+                {
+                    call.respond(HttpStatusCode.BadRequest)
+                }
+            }
+
+            post("/completeTask"){
+                try {
+                    val taskName = call.request.queryParameters["task_name"]
+
+                    if(taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
+
+                    val response = taskService.complete(taskName)
+                    if(response.isSuccessful()) return@post call.respond(HttpStatusCode.OK, response.data!!)
+
+                    else handleErrorResponse(response)
+                }
+                catch (ex: IllegalStateException)
+                {
+                    call.respond(HttpStatusCode.BadRequest)
+                } catch (ex: JsonConvertException)
+                {
+                    call.respond(HttpStatusCode.BadRequest)
+                }
+            }
+
+            post("/completeActiveTask"){
+                try {
+
+                    val response = taskService.completeActiveTask()
+                    if(response.isSuccessful()) return@post call.respond(HttpStatusCode.OK, response.data!!)
+
                     else handleErrorResponse(response)
                 }
                 catch (ex: IllegalStateException)

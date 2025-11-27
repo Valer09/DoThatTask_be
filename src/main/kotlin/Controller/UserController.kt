@@ -25,7 +25,7 @@ fun Application.userRoutes()
             }
 
             get("/usersLessMe") {
-                call.respond(HttpStatusCode.OK, userRepository.all().filterNot(){ it.username == "valerio99"}) // MUST BE REPLACED WITH SESSION USERNAME
+                call.respond(HttpStatusCode.OK, userRepository.all().filterNot(){ it.username == "valerio99"}) //TODO: MUST BE REPLACED WITH SESSION USERNAME
                 return@get
             }
 

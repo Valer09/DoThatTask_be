@@ -1,6 +1,7 @@
 package homeaq.dothattask.data.service
 
 import homeaq.dothattask.Model.Task
+import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.Model.TaskUpdate
 import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.DataResult
@@ -12,6 +13,53 @@ class TaskService(private val taskRepository: TaskRepository)
     suspend fun all(): DataResponse<List<Task>> = DataResponse.success(taskRepository.allTasks())
 
     suspend fun tasksByUser(username : String): DataResponse<List<Task>> = DataResponse.success(taskRepository.tasksByUser(username))
+
+    // TODO: THIS MUST BE WITH USER SESSION USERNAME
+    suspend fun assignedTask(): DataResponse<Task>
+    {
+        val task = taskRepository.tasksByUser("valerio99")
+        if(task.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
+        return task.firstOrNull { it.status == TaskStatus.ACTIVE }?.let { DataResponse.success(it) }?: DataResponse.notFound("No active tasks assigned to this user")
+    }
+
+    // TODO: THIS MUST BE WITH USER SESSION USERNAME
+    suspend fun pickTask() : DataResponse<Boolean>
+    {
+        val tasks = taskRepository.tasksByUser("valerio99")
+        if(tasks.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
+
+        val pickedTask = tasks.filterNot { it.status == TaskStatus.ACTIVE }.random()
+        taskRepository.update(
+            Task(pickedTask.name, pickedTask.description, pickedTask.category, TaskStatus.ACTIVE, pickedTask.ownership_username),
+            pickedTask.name, pickedTask.ownership_username)
+
+        return DataResponse.success(true)
+    }
+
+    suspend fun complete(taskName: String) : DataResponse<Task>
+    {
+        var taskByName = taskRepository.taskByName(taskName) ?: return DataResponse.notFound("No task with the provided name found")
+
+        taskRepository.update(
+            Task(
+                taskName,
+                taskByName.description,
+                taskByName.category,
+                TaskStatus.COMPLETED,
+                taskByName.ownership_username), taskName, taskByName.ownership_username)
+
+        taskByName = taskRepository.taskByName(taskName) ?: return DataResponse.databaseError("cannot retrieve updated task")
+
+        return DataResponse.success(taskByName)
+    }
+
+    suspend fun completeActiveTask(): DataResponse<Task>
+    {
+        val result = assignedTask().result
+        if(result == DataResult.NOT_FOUND) return DataResponse.notFound("No active tasks assigned to this user")
+        return complete(assignedTask().data?.name!!)
+    }
+
 
     suspend fun read(name : String): DataResponse<Task?> = taskRepository.taskByName(name) ?.let { DataResponse.success(taskRepository.taskByName(name))}?: DataResponse.Companion.notFound()
 
@@ -38,4 +86,7 @@ class TaskService(private val taskRepository: TaskRepository)
         taskRepository.create(task, ownershipUsername).takeIf { it == -1 }?.
         let{ DataResponse.Companion.databaseError("Unable to retrieve the id of the newly inserted task") }?:
         DataResponse.success(task, "Task created successfully")
+
+
+
 }

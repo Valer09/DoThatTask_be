@@ -3,9 +3,11 @@ package homeaq.dothattask.data.service
 import homeaq.dothattask.Model.Task
 import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.Model.TaskUpdate
+import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.DataResult
 import homeaq.dothattask.data.repository.TaskRepository
+import io.ktor.server.auth.principal
 
 class TaskService(private val taskRepository: TaskRepository)
 {
@@ -14,18 +16,16 @@ class TaskService(private val taskRepository: TaskRepository)
 
     suspend fun tasksByUser(username : String): DataResponse<List<Task>> = DataResponse.success(taskRepository.tasksByUser(username))
 
-    // TODO: THIS MUST BE WITH USER SESSION USERNAME
-    suspend fun assignedTask(): DataResponse<Task>
+    suspend fun assignedTask(username : String): DataResponse<Task>
     {
-        val task = taskRepository.tasksByUser("valerio99")
+        val task = taskRepository.tasksByUser(username)
         if(task.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
         return task.firstOrNull { it.status == TaskStatus.ACTIVE }?.let { DataResponse.success(it) }?: DataResponse.notFound("No active tasks assigned to this user")
     }
 
-    // TODO: THIS MUST BE WITH USER SESSION USERNAME
-    suspend fun pickTask() : DataResponse<Boolean>
+    suspend fun pickTask(username: String) : DataResponse<Boolean>
     {
-        val tasks = taskRepository.tasksByUser("valerio99")
+        val tasks = taskRepository.tasksByUser(username)
         if(tasks.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
 
         val pickedTask = tasks.filterNot { it.status == TaskStatus.ACTIVE }.random()
@@ -53,11 +53,11 @@ class TaskService(private val taskRepository: TaskRepository)
         return DataResponse.success(taskByName)
     }
 
-    suspend fun completeActiveTask(): DataResponse<Task>
+    suspend fun completeActiveTask(username: String): DataResponse<Task>
     {
-        val result = assignedTask().result
+        val result = assignedTask(username).result
         if(result == DataResult.NOT_FOUND) return DataResponse.notFound("No active tasks assigned to this user")
-        return complete(assignedTask().data?.name!!)
+        return complete(assignedTask(username).data?.name!!)
     }
 
 

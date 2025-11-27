@@ -54,11 +54,7 @@ class UserRepository(private val connection: Connection, factory: ITableFactory,
             return@withContext User(
                 resultSet.getString("name"),
                 resultSet.getString("username"),
-
-                // DO YOU REALLY NEED?
-                //resultSet.getString("password_hash"),
-
-                "better_not"
+                resultSet.getString("password_hash"),
             )
         }
         null

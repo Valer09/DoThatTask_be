@@ -39,4 +39,6 @@ dependencies {
 
     implementation("at.favre.lib:bcrypt:0.10.2")
 
+    implementation("io.ktor:ktor-server-auth")
+
 }

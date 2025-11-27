@@ -1,9 +1,12 @@
 package homeaq.dothattask.Controller
 
 import homeaq.dothattask.Model.PasswordHash
+import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.data.repository.UserRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.principal
 import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
@@ -18,15 +21,19 @@ fun Application.userRoutes()
 
     routing {
         route("/user") {
-            get("/byUsername/{username}") {
+
+         /*   get("/byUsername/{username}") {
                 val username = call.parameters["username"]
                 call.respond(HttpStatusCode.OK, userRepository.userByUsername(username!!)!!)
                 return@get
-            }
+            }*/
 
-            get("/usersLessMe") {
-                call.respond(HttpStatusCode.OK, userRepository.all().filterNot(){ it.username == "valerio99"}) //TODO: MUST BE REPLACED WITH SESSION USERNAME
-                return@get
+            authenticate("auth-basic") {
+                get("/usersLessMe") {
+                    val principal = call.principal<UserPrincipal>()
+                    call.respond(HttpStatusCode.OK, userRepository.all().filterNot(){ it.username == principal?.getUserName()}) //TODO: MUST BE REPLACED WITH SESSION USERNAME
+                    return@get
+                }
             }
 
            /* get("/passwordByUsername/{username}") {

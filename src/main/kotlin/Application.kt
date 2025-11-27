@@ -1,11 +1,18 @@
 package homeaq.dothattask
 
+import homeaq.dothattask.Model.PasswordHash
+import homeaq.dothattask.Model.User
+import homeaq.dothattask.Model.UserPrincipal
+import homeaq.dothattask.data.repository.UserRepository
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.*
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.basic
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.CORS
+import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
@@ -35,6 +42,20 @@ fun main(args: Array<String>) {
             properties(mapOf("application" to this@module))
         }
 
-    configureSerialization()
+        val userRepository: UserRepository by inject()
+
+        install(Authentication) {
+            basic("auth-basic") {
+                realm = "Ktor Server"
+                validate { credentials ->
+                    val user = userRepository.userByUsername(credentials.name)
+                    if (user != null && PasswordHash.verifyPassword(credentials.password, user.password_hash))
+                        UserPrincipal(user.username, user.name) else null
+                }
+            }
+        }
+
+
+        configureSerialization()
     configureRouting()
 }

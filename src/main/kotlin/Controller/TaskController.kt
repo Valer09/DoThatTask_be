@@ -16,6 +16,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import org.koin.ktor.ext.get
 import org.koin.ktor.ext.inject
 
 fun Application.taskRoutes()
@@ -28,6 +29,14 @@ fun Application.taskRoutes()
                 call.respond(HttpStatusCode.OK, taskService.all().data!!)
                 return@get
                 }
+
+            get("/tasksByUser/{username}") {
+                val username = call.parameters["username"]
+                if(username.isNullOrEmpty()) return@get call.respond(HttpStatusCode.BadRequest)
+
+                call.respond(HttpStatusCode.OK, taskService.tasksByUser(username).data!!)
+                return@get
+            }
 
             get("/byName/{name}") {
                 val name = call.parameters["name"]

@@ -1,14 +1,21 @@
 package homeaq.dothattask
 
+import homeaq.dothattask.data.DBSchema.TaskTableFactoryH2
+import homeaq.dothattask.data.DBSchema.TaskTableFactoryPostgres
 import homeaq.dothattask.data.repository.TaskRepository
 import homeaq.dothattask.data.service.TaskService
-import homeaq.dothattask.data.TaskTableSeedH2
-import homeaq.dothattask.data.TaskTableSeedPostgres
+import homeaq.dothattask.data.DBSchema.TaskTableSeedH2
+import homeaq.dothattask.data.DBSchema.TaskTableSeedPostgres
+import homeaq.dothattask.data.DBSchema.UserTableFactoryH2
+import homeaq.dothattask.data.DBSchema.UserTableFactoryPostgres
 import homeaq.dothattask.data.repository.UserRepository
-import homeaq.dothattask.data.UserTableSeedH2
-import homeaq.dothattask.data.UserTableSeedPostgres
+import homeaq.dothattask.data.DBSchema.UserTableSeedH2
+import homeaq.dothattask.data.DBSchema.UserTableSeedPostgres
+import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
+import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import io.ktor.server.application.Application
 import io.ktor.server.application.log
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.sql.Connection
 import java.sql.DriverManager
@@ -20,7 +27,7 @@ val appModule = module {
         getKoin().getProperty<Application>("application") ?: throw IllegalStateException("Application property is missing")
     }
 
-    single<Boolean> {
+    single<Boolean>(qualifier = named("embedded")) {
         get<Application>().environment.config
             .propertyOrNull("ktor.database.embedded")
             ?.getString()
@@ -29,9 +36,9 @@ val appModule = module {
     }
 
     //Bean
-    single<Connection> {
+    single<Connection>(qualifier = named("connection")) {
         val app = get<Application>()
-        val useEmbedded = get<Boolean>()
+        val useEmbedded = get<Boolean>( named("embedded"))
 
         if (useEmbedded) {
             app.log.info("Using embedded H2 database")
@@ -47,7 +54,36 @@ val appModule = module {
         }
     }
 
-    single<TaskRepository> { TaskRepository(get(), if (get<Boolean>()) TaskTableSeedH2(get()) else TaskTableSeedPostgres(get())) }
-    single<UserRepository> { UserRepository(get(), if (get<Boolean>()) UserTableSeedH2(get()) else UserTableSeedPostgres(get())) }
+    single<ITableFactory>(qualifier = named("task_table_factory")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) TaskTableFactoryH2() else TaskTableFactoryPostgres()
+    }
+
+    single<ITableFactory>(qualifier = named("user_table_factory")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) UserTableFactoryH2() else UserTableFactoryPostgres()
+    }
+
+    single<ITableSeed>(qualifier = named("task_table_seed")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) TaskTableSeedH2() else TaskTableSeedPostgres()
+    }
+
+    single<ITableSeed>(qualifier = named("user_table_seed")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) UserTableSeedH2() else UserTableSeedPostgres()
+    }
+
+    single<TaskRepository> { TaskRepository(
+            get(named("connection")),
+        get(named("task_table_factory")),
+        get(named("task_table_seed"))) }
+
+    single<UserRepository> { UserRepository(
+        get(named("connection")),
+        get(named("user_table_factory")),
+        get(named("user_table_seed"))) }
+
     single<TaskService> { TaskService(get()) }
+
 }

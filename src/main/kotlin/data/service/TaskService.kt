@@ -9,17 +9,20 @@ import homeaq.dothattask.data.repository.TaskRepository
 class TaskService(private val taskRepository: TaskRepository)
 {
 
-    suspend fun all(): DataResponse<List<Task>> = DataResponse.Companion.success(taskRepository.allTasks())
-    suspend fun read(name : String): DataResponse<Task?> = taskRepository.taskByName(name) ?.let { DataResponse.Companion.success(taskRepository.taskByName(name))}?: DataResponse.Companion.notFound()
+    suspend fun all(): DataResponse<List<Task>> = DataResponse.success(taskRepository.allTasks())
+
+    suspend fun tasksByUser(username : String): DataResponse<List<Task>> = DataResponse.success(taskRepository.tasksByUser(username))
+
+    suspend fun read(name : String): DataResponse<Task?> = taskRepository.taskByName(name) ?.let { DataResponse.success(taskRepository.taskByName(name))}?: DataResponse.Companion.notFound()
 
     suspend fun addOrUpdate(taskUpdate: TaskUpdate): DataResponse<Task>
     {
-        val newTask = Task.Companion.createFromTaskUpdate(taskUpdate)
-        taskRepository.taskByName(taskUpdate.oldName) ?: return create(newTask)
+        val newTask = Task.createFromTaskUpdate(taskUpdate)
+        taskRepository.taskByName(taskUpdate.oldName) ?: return create(newTask, taskUpdate.ownership_username)
 
-        taskRepository.update(newTask, taskUpdate.oldName)
+        taskRepository.update(newTask, taskUpdate.oldName, taskUpdate.ownership_username)
 
-        return DataResponse.Companion.success(newTask, "Task updated successfully")
+        return DataResponse.success(newTask, "Task updated successfully")
     }
 
     suspend fun delete(name: String): DataResponse<out Any>
@@ -28,8 +31,11 @@ class TaskService(private val taskRepository: TaskRepository)
 
         if(check.result == DataResult.NOT_FOUND) return DataResponse.Companion.notFound("Given task doesn't exists already")
 
-        return DataResponse.Companion.success(taskRepository.delete(name))
+        return DataResponse.success(taskRepository.delete(name))
     }
 
-    private suspend fun create(task: Task): DataResponse<Task> = taskRepository.create(task).takeIf { it == -1 }?.let{ DataResponse.Companion.databaseError("Unable to retrieve the id of the newly inserted task") }?: DataResponse.Companion.success(task, "Task created successfully")
+    private suspend fun create(task: Task, ownershipUsername: String): DataResponse<Task> =
+        taskRepository.create(task, ownershipUsername).takeIf { it == -1 }?.
+        let{ DataResponse.Companion.databaseError("Unable to retrieve the id of the newly inserted task") }?:
+        DataResponse.success(task, "Task created successfully")
 }

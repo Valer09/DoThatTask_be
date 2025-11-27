@@ -1,29 +1,28 @@
 package homeaq.dothattask.data.repository
 
-import homeaq.dothattask.Model.Task
-import homeaq.dothattask.Model.TaskCategory
-import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.Model.User
-import homeaq.dothattask.data.ITableSeed
-import homeaq.dothattask.data.UsersSchema
+import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
+import homeaq.dothattask.data.DBSchema.UsersSchema
+import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import io.ktor.server.plugins.NotFoundException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.sql.Connection
 
-class UserRepository(private val connection: Connection, private val seeder: ITableSeed)
+class UserRepository(private val connection: Connection, factory: ITableFactory, seeder: ITableSeed)
 {
-
+    private val SELECT_ALL = "SELECT name, username FROM users"
+    private val SELECT_USER_BY_USERNAME = "SELECT * FROM users WHERE username = ?"
+    private val GET_PASSWORD_HASH_BY_USERNAME = "SELECT password_hash FROM users WHERE username = ?"
 
     init {
-        val statement = connection.createStatement()
-        statement.executeUpdate(UsersSchema.Companion.CREATE_TABLE_USERS)
-        seeder.seed()
+        factory.createTable(connection)
+        seeder.seed(connection)
     }
 
     suspend fun all(): List<User> = withContext(Dispatchers.IO)
     {
-        val statement = connection.prepareStatement(UsersSchema.SELECT_ALL)
+        val statement = connection.prepareStatement(SELECT_ALL)
 
         val resultSet = statement.executeQuery()
 
@@ -34,7 +33,7 @@ class UserRepository(private val connection: Connection, private val seeder: ITa
                     resultSet.getString("name"),
                     resultSet.getString("username"),
 
-                    // DO YOU REALLY NEED?
+                    //WARNING: DO YOU REALLY NEED?
                     //resultSet.getString("password_hash"),
 
                     "better_not"
@@ -47,7 +46,7 @@ class UserRepository(private val connection: Connection, private val seeder: ITa
 
     suspend fun userByUsername(username: String): User? = withContext(Dispatchers.IO)
     {
-        val statement = connection.prepareStatement(UsersSchema.Companion.SELECT_USER_BY_USERNAME)
+        val statement = connection.prepareStatement(SELECT_USER_BY_USERNAME)
         statement.setString(1, username)
         val resultSet = statement.executeQuery()
 
@@ -68,12 +67,12 @@ class UserRepository(private val connection: Connection, private val seeder: ITa
     suspend fun passwordHashByUsername(username: String): String = withContext(Dispatchers.IO)
     {
 
-        var statement = connection.prepareStatement(UsersSchema.SELECT_USER_BY_USERNAME)
+        var statement = connection.prepareStatement(SELECT_USER_BY_USERNAME)
         statement.setString(1, username)
         var resultSet = statement.executeQuery()
         if (!resultSet.next()) throw NotFoundException("User does not exists")
 
-        statement = connection.prepareStatement(UsersSchema.GET_PASSWORD_HASH_BY_USERNAME)
+        statement = connection.prepareStatement(GET_PASSWORD_HASH_BY_USERNAME)
         statement.setString(1, username)
         resultSet = statement.executeQuery()
 

@@ -7,10 +7,11 @@ data class Task
     val name: String,
     val description: String,
     val category: TaskCategory,
-    val status: TaskStatus
+    val status: TaskStatus,
+    val ownership_username: String
 ) {
     companion object {
-        fun createFromTaskUpdate(task: TaskUpdate): Task = Task(task.newName, task.description, task.category, task.status)
+        fun createFromTaskUpdate(task: TaskUpdate): Task = Task(task.newName, task.description, task.category, task.status, task.ownership_username)
     }
 }
 
@@ -21,7 +22,8 @@ data class TaskUpdate
     val newName: String,
     val description: String,
     val category: TaskCategory,
-    val status: TaskStatus
+    val status: TaskStatus,
+    val ownership_username: String
 )
 
 enum class TaskStatus(val code: Int) {

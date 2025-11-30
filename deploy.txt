@@ -1,0 +1,4 @@
+docker build -t dothattask_be .
+docker tag dothattask_be-web:latest vale09/dothattask_be:latest
+docker login
+docker push vale09/dothattask_be:latest

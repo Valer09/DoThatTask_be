@@ -2,7 +2,10 @@ services:
   web:
     build: .
     ports:
-      - "10000:10000"
-    depends_on:
-      db:
-        condition: service_healthy
+      - "0.0.0.0:10000:10000"
+    environment:
+      DB_URL: ${DB_URL}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_EMB: ${DB_EMB}
+    restart: always

@@ -1,4 +1,8 @@
 docker build -t dothattask_be .
+docker buildx create --use
 docker tag dothattask_be-web:latest vale09/dothattask_be:latest
+
 docker login
-docker push vale09/dothattask_be:latest
+
+docker buildx build --platform linux/arm64 -t vale09/dothattask_be:latest --push .
+#docker push vale09/dothattask_be:latest

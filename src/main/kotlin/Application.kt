@@ -56,9 +56,7 @@ fun main(args: Array<String>) {
             }
             else
             {
-                allowHost("serverless.homepc.me", schemes = listOf("https"))
                 allowHost("raspi.tail0458e4.ts.net", schemes = listOf("https"))
-
             }
 
 

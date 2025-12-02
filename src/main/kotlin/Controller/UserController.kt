@@ -20,7 +20,7 @@ fun Application.userRoutes()
     val userRepository by inject<UserRepository>()
 
     routing {
-        route("/user") {
+        route("/api/user") {
 
 
             authenticate("auth-basic") {

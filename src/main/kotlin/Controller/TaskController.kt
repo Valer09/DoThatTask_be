@@ -28,7 +28,7 @@ fun Application.taskRoutes()
 
     routing {
         authenticate("auth-basic") {
-            route("/tasks") {
+            route("/api/tasks") {
                 get {
                     call.respond(HttpStatusCode.OK, taskService.all().data!!)
                     return@get

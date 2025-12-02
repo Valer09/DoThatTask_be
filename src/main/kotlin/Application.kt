@@ -11,10 +11,12 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.basic
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.cors.maxAgeDuration
 import io.ktor.server.plugins.cors.routing.CORS
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
+import org.koin.mp.KoinPlatform.getKoin
 
 
 //https://raspi.tail0458e4.ts.net
@@ -29,11 +31,37 @@ fun main(args: Array<String>) {
             json()
         }
         install(CORS) {
-            allowHeader(HttpHeaders.ContentType)
-            allowMethod(HttpMethod.Delete)
-            // For ease of demonstration we allow any connections.
-            // Don't do this in production.
-            anyHost()
+
+
+
+            val isDev = this@module.environment.config.property("ktor.deployment.environment").getString() == "dev"
+
+            if(isDev)
+            {
+
+                allowNonSimpleContentTypes = true
+                allowCredentials = true
+                allowSameOrigin = true
+
+                allowMethod(HttpMethod.Options)
+                allowMethod(HttpMethod.Get)
+                allowMethod(HttpMethod.Post)
+                allowMethod(HttpMethod.Put)
+                allowMethod(HttpMethod.Delete)
+
+                allowHeader(HttpHeaders.ContentType)
+                allowHeader(HttpHeaders.Authorization)
+                allowCredentials = true
+                anyHost()
+            }
+            else
+            {
+                allowHost("serverless.homepc.me", schemes = listOf("https"))
+                //allowHost("www.tuodominio.com", schemes = listOf("https"))
+            }
+
+
+            maxAgeDuration = kotlin.time.Duration.parse("24h")
         }
         install(Koin)
         {

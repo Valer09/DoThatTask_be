@@ -42,6 +42,17 @@ fun Application.taskRoutes()
                     return@get
                 }
 
+                get("/completed") {
+                    val principal = call.principal<UserPrincipal>()
+                    if (principal?.getUserName().isNullOrEmpty()) return@get call.respond(HttpStatusCode.Unauthorized)
+
+                    val response = taskService.getCompletedTasks(principal.getUserName())
+                    if(response.result == DataResult.NOT_FOUND) return@get call.respond(HttpStatusCode.InternalServerError)
+
+                    call.respond(HttpStatusCode.OK, response.data!!)
+                    return@get
+                }
+
                 get("/assignedTask") {
 
                     val principal = call.principal<UserPrincipal>()

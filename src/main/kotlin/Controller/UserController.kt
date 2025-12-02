@@ -22,11 +22,6 @@ fun Application.userRoutes()
     routing {
         route("/user") {
 
-         /*   get("/byUsername/{username}") {
-                val username = call.parameters["username"]
-                call.respond(HttpStatusCode.OK, userRepository.userByUsername(username!!)!!)
-                return@get
-            }*/
 
             authenticate("auth-basic") {
                 get("/usersLessMe") {
@@ -35,12 +30,6 @@ fun Application.userRoutes()
                     return@get
                 }
             }
-
-           /* get("/passwordByUsername/{username}") {
-                val username = call.parameters["username"]
-                call.respond(HttpStatusCode.OK, userRepository.passwordHashByUsername(username!!))
-                return@get
-            }*/
 
             get("/login/") {
 

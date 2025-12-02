@@ -6,6 +6,7 @@ import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import homeaq.dothattask.data.DBSchema.TasksSchema
+import io.ktor.server.plugins.NotFoundException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.sql.Connection
@@ -18,8 +19,8 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     private val INSERT_TASK = "INSERT INTO tasks (name, category, status, description, user_username) VALUES (?, ?, ?, ?, ?)"
     private val UPDATE_TASK = "UPDATE tasks SET name = ?, category = ?, status = ?, description = ?, user_username = ? WHERE name = ?"
     private val DELETE_TASK = "DELETE FROM tasks WHERE name = ?"
-
     private val SELECT_TASK_BY_USER = "SELECT * FROM tasks WHERE user_username = ?"
+    private val SELECT_COMPLETED_TASK_BY_USER = "SELECT * FROM tasks WHERE user_username = ? AND status = ?"
 
     init {
         factory.createTable(connection)
@@ -88,6 +89,34 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     {
         val statement = connection.prepareStatement(SELECT_TASK_BY_USER)
         statement.setString(1, username)
+        val resultSet = statement.executeQuery()
+        val result = mutableListOf<Task>()
+
+        while (resultSet.next()) {
+            result.add(
+                Task(
+                    name = resultSet.getString("name"),
+                    category = TaskCategory.fromCode(resultSet.getInt("category")),
+                    status = TaskStatus.fromCode(resultSet.getInt("status")),
+                    description = resultSet.getString("description"),
+                    ownership_username = resultSet.getString("user_username")
+                )
+            )
+        }
+        return@withContext result
+    }
+
+    suspend fun completedTasks(username: String) :  List<Task> = withContext(Dispatchers.IO)
+    {
+        val userStatement = connection.prepareStatement("SELECT user FROM users WHERE username = ?")
+        userStatement.setString(1, username)
+        val userResultSet = userStatement.executeQuery()
+
+        if (!userResultSet.next()) throw NotFoundException("User not found")
+
+        val statement = connection.prepareStatement(SELECT_COMPLETED_TASK_BY_USER)
+        statement.setString(1, username)
+        statement.setInt(2, TaskStatus.COMPLETED.code)
         val resultSet = statement.executeQuery()
         val result = mutableListOf<Task>()
 

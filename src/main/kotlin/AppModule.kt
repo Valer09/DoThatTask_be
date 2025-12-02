@@ -24,7 +24,7 @@ val appModule = module {
 
 
     single<Application> {
-        getKoin().getProperty<Application>("application") ?: throw IllegalStateException("Application property is missing")
+        getKoin().getProperty("application") ?: throw IllegalStateException("Application property is missing")
     }
 
     single<Boolean>(qualifier = named("embedded")) {

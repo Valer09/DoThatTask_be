@@ -8,11 +8,28 @@ import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.DataResult
 import homeaq.dothattask.data.repository.TaskRepository
 import io.ktor.server.auth.principal
+import io.ktor.server.plugins.NotFoundException
+import javax.xml.crypto.Data
+import kotlin.concurrent.timerTask
 
 class TaskService(private val taskRepository: TaskRepository)
 {
 
     suspend fun all(): DataResponse<List<Task>> = DataResponse.success(taskRepository.allTasks())
+
+    suspend fun getCompletedTasks(userName: String) : DataResponse<List<Task>>
+    {
+        try
+        {
+            val taskList= taskRepository.completedTasks(userName)
+            if(taskList.isEmpty()) return DataResponse.success(ArrayList<Task>())
+            return DataResponse.success(taskList)
+        }
+        catch(ex : NotFoundException)
+        {
+            return DataResponse.notFound("User not found")
+        }
+    }
 
     suspend fun tasksByUser(username : String): DataResponse<List<Task>> = DataResponse.success(taskRepository.tasksByUser(username))
 
@@ -28,10 +45,15 @@ class TaskService(private val taskRepository: TaskRepository)
         val tasks = taskRepository.tasksByUser(username)
         if(tasks.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
 
-        val pickedTask = tasks.filterNot { it.status == TaskStatus.ACTIVE }.random()
+        val filteredTasks = tasks.filter { it.status == TaskStatus.TODO }
+        if(filteredTasks.count() < 1) return DataResponse.notFound("No tasks assigned to this user")
+
+        val pickedTask = filteredTasks.random()
+
         taskRepository.update(
             Task(pickedTask.name, pickedTask.description, pickedTask.category, TaskStatus.ACTIVE, pickedTask.ownership_username),
             pickedTask.name, pickedTask.ownership_username)
+
 
         return DataResponse.success(true)
     }
@@ -86,7 +108,4 @@ class TaskService(private val taskRepository: TaskRepository)
         taskRepository.create(task, ownershipUsername).takeIf { it == -1 }?.
         let{ DataResponse.Companion.databaseError("Unable to retrieve the id of the newly inserted task") }?:
         DataResponse.success(task, "Task created successfully")
-
-
-
 }

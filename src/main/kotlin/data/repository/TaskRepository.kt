@@ -180,4 +180,13 @@ class TaskRepository(private val connection: Connection, private val factory: IT
         statement.setString(1, name)
         statement.executeUpdate()
     }
+
+    suspend fun unAssign(taskName: String) : Unit = withContext(Dispatchers.IO)
+    {
+        val sta = TaskStatus.TODO.code
+        val findStm = connection.prepareStatement("UPDATE tasks SET status = ? WHERE name = ?")
+        findStm.setInt(1, sta)
+        findStm.setString(2, taskName)
+        findStm.executeUpdate()
+    }
 }

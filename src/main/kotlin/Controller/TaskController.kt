@@ -19,7 +19,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import org.koin.ktor.ext.get
 import org.koin.ktor.ext.inject
 
 fun Application.taskRoutes()
@@ -100,10 +99,13 @@ fun Application.taskRoutes()
                 post("/pickTask") {
                     try {
 
+                        val taskName = call.request.queryParameters["category"]
+                        if(taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
+
                         val principal = call.principal<UserPrincipal>()
                         if (principal?.getUserName().isNullOrEmpty()) return@post call.respond(HttpStatusCode.Unauthorized)
 
-                        val response = taskService.pickTask(principal.getUserName())
+                        val response = taskService.pickTask(principal.getUserName(), taskName)
                         if (response.result == DataResult.NOT_FOUND) return@post call.respond(
                             HttpStatusCode.NotFound,
                             message = "No tasks assigned to this user"
@@ -113,6 +115,27 @@ fun Application.taskRoutes()
 
                         if (assTask.result == DataResult.NOT_FOUND) return@post call.respond(HttpStatusCode.InternalServerError)
                         return@post call.respond(HttpStatusCode.OK, assTask.data!!)
+                    } catch (ex: IllegalStateException) {
+                        call.respond(HttpStatusCode.BadRequest)
+                    } catch (ex: JsonConvertException) {
+                        call.respond(HttpStatusCode.BadRequest)
+                    }
+                }
+
+
+                post("/unassign") {
+                    try {
+
+                        val taskName = call.request.queryParameters["task_name"]
+                        if(taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
+
+                        val response = taskService.unassign(taskName)
+                        if (response.result == DataResult.NOT_FOUND) return@post call.respond(
+                            HttpStatusCode.NotFound,
+                            message = "No tasks faound with this name"
+                        )
+
+                        return@post call.respond(HttpStatusCode.OK, response.data!!)
                     } catch (ex: IllegalStateException) {
                         call.respond(HttpStatusCode.BadRequest)
                     } catch (ex: JsonConvertException) {

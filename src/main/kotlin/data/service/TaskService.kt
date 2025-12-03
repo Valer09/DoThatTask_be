@@ -3,14 +3,10 @@ package homeaq.dothattask.data.service
 import homeaq.dothattask.Model.Task
 import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.Model.TaskUpdate
-import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.DataResult
 import homeaq.dothattask.data.repository.TaskRepository
-import io.ktor.server.auth.principal
 import io.ktor.server.plugins.NotFoundException
-import javax.xml.crypto.Data
-import kotlin.concurrent.timerTask
 
 class TaskService(private val taskRepository: TaskRepository)
 {
@@ -40,12 +36,12 @@ class TaskService(private val taskRepository: TaskRepository)
         return task.firstOrNull { it.status == TaskStatus.ACTIVE }?.let { DataResponse.success(it) }?: DataResponse.notFound("No active tasks assigned to this user")
     }
 
-    suspend fun pickTask(username: String) : DataResponse<Boolean>
+    suspend fun pickTask(username: String, taskName: String) : DataResponse<Boolean>
     {
         val tasks = taskRepository.tasksByUser(username)
         if(tasks.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
 
-        val filteredTasks = tasks.filter { it.status == TaskStatus.TODO }
+        val filteredTasks = tasks.filter { it.status == TaskStatus.TODO && it.category.name == taskName }
         if(filteredTasks.count() < 1) return DataResponse.notFound("No tasks assigned to this user")
 
         val pickedTask = filteredTasks.random()
@@ -56,6 +52,17 @@ class TaskService(private val taskRepository: TaskRepository)
 
 
         return DataResponse.success(true)
+    }
+
+    suspend fun unassign(taskName: String) : DataResponse<Boolean>
+    {
+        val task = taskRepository.taskByName(taskName)
+        if(task == null ) return DataResponse.notFound("No task found with this name")
+
+
+        taskRepository.unAssign(taskName)
+        return DataResponse.success(true)
+
     }
 
     suspend fun complete(taskName: String) : DataResponse<Task>
@@ -108,4 +115,5 @@ class TaskService(private val taskRepository: TaskRepository)
         taskRepository.create(task, ownershipUsername).takeIf { it == -1 }?.
         let{ DataResponse.Companion.databaseError("Unable to retrieve the id of the newly inserted task") }?:
         DataResponse.success(task, "Task created successfully")
+
 }

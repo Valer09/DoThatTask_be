@@ -5,7 +5,6 @@ import homeaq.dothattask.Model.TaskCategory
 import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
-import homeaq.dothattask.data.DBSchema.TasksSchema
 import io.ktor.server.plugins.NotFoundException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

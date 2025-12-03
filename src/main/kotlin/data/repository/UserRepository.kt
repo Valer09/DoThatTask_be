@@ -2,7 +2,6 @@ package homeaq.dothattask.data.repository
 
 import homeaq.dothattask.Model.User
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
-import homeaq.dothattask.data.DBSchema.UsersSchema
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import io.ktor.server.plugins.NotFoundException
 import kotlinx.coroutines.Dispatchers

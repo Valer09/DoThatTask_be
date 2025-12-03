@@ -1,8 +1,4 @@
 package homeaq.dothattask.data
-
-import homeaq.dothattask.Model.Task
-import kotlinx.serialization.Serializable
-
 class DataResponse <T>(result: DataResult, message: String, data: T?)
 {
     private val _result: DataResult = result

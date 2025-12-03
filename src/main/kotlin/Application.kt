@@ -50,6 +50,15 @@ fun main(args: Array<String>) {
             }
             else
             {
+                allowCredentials = true
+                allowSameOrigin = true
+
+                allowMethod(HttpMethod.Options)
+                allowMethod(HttpMethod.Get)
+                allowMethod(HttpMethod.Post)
+                allowMethod(HttpMethod.Put)
+                allowMethod(HttpMethod.Delete)
+                allowHost("serverless.synology.me:8443", schemes = listOf("https"))
                 //allowHost("raspi.tail0458e4.ts.net", schemes = listOf("https"))
             }
 

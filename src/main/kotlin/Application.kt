@@ -53,6 +53,8 @@ fun main(args: Array<String>) {
                 allowCredentials = true
                 allowSameOrigin = true
 
+                allowHeader(HttpHeaders.ContentType)
+                allowHeader(HttpHeaders.Authorization)
                 allowMethod(HttpMethod.Options)
                 allowMethod(HttpMethod.Get)
                 allowMethod(HttpMethod.Post)

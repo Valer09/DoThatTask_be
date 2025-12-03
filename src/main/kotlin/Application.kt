@@ -50,16 +50,7 @@ fun main(args: Array<String>) {
             }
             else
             {
-                allowHost("raspi.tail0458e4.ts.net", schemes = listOf("https"))
-                allowCredentials = true
-                allowHeader(HttpHeaders.ContentType)
-                allowHeader(HttpHeaders.Authorization)
-                allowMethod(HttpMethod.Get)
-                allowMethod(HttpMethod.Post)
-                allowMethod(HttpMethod.Put)
-                allowMethod(HttpMethod.Delete)
-                allowSameOrigin = true
-                anyHost()
+                //allowHost("raspi.tail0458e4.ts.net", schemes = listOf("https"))
             }
 
 

@@ -94,8 +94,12 @@ class TaskService(private val taskRepository: TaskRepository)
 
     suspend fun addOrUpdate(taskUpdate: TaskUpdate): DataResponse<Task>
     {
-        val newTask = Task.createFromTaskUpdate(taskUpdate)
-        taskRepository.taskByName(taskUpdate.oldName) ?: return create(newTask, taskUpdate.ownership_username)
+        val taskByName = taskRepository.taskByName(taskUpdate.oldName) ?:
+        return create(
+            Task.createFromTaskUpdate(taskUpdate),
+            taskUpdate.ownership_username)
+
+        val newTask = Task.createFromTaskUpdate(taskUpdate, taskByName.status)
 
         taskRepository.update(newTask, taskUpdate.oldName, taskUpdate.ownership_username)
 

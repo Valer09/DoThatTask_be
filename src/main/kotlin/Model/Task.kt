@@ -11,7 +11,7 @@ data class Task
     val ownership_username: String
 ) {
     companion object {
-        fun createFromTaskUpdate(task: TaskUpdate): Task = Task(task.newName, task.description, task.category, task.status, task.ownership_username)
+        fun createFromTaskUpdate(task: TaskUpdate, overrideStatus: TaskStatus? = null): Task = Task(task.newName, task.description, task.category, overrideStatus ?: task.status, task.ownership_username)
     }
 }
 

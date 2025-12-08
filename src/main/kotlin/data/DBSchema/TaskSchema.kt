@@ -16,7 +16,7 @@ sealed class TasksSchema
                     "name VARCHAR(150) NOT NULL UNIQUE," +
                     "category INTEGER NOT NULL," +
                     "status INTEGER NOT NULL," +
-                    "description VARCHAR(255)," +
+                    "description VARCHAR(2056)," +
                     "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE)"
 
     }

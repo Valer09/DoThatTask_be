@@ -19,7 +19,18 @@ sealed class TasksSchema
                     "description VARCHAR(2056)," +
                     "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE)"
 
+        const val CREATE_TABLE_TASKS_PG =
+            "CREATE TABLE IF NOT EXISTS TASKS (ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
+                    "name VARCHAR(150) NOT NULL UNIQUE," +
+                    "category INTEGER NOT NULL," +
+                    "status INTEGER NOT NULL," +
+                    "description VARCHAR(2056)," +
+                    "user_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE)"
     }
+
+
+
+
 }
 
 class TaskTableFactoryH2 : ITableFactory
@@ -37,7 +48,8 @@ class TaskTableFactoryPostgres : ITableFactory
 {
     override fun createTable(connection: Connection)
     {
-        connection.createStatement().executeUpdate(TasksSchema.CREATE_TABLE_TASKS)
+        //TODO: to verify!
+        connection.createStatement().executeUpdate(TasksSchema.CREATE_TABLE_TASKS_PG)
     }
 }
 

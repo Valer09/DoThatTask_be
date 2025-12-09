@@ -16,6 +16,13 @@ sealed class UsersSchema
                     "username VARCHAR(150) NOT NULL UNIQUE," +
                     "password_hash VARCHAR(255) NOT NULL," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+
+        const val CREATE_TABLE_USERS_PG =
+            "CREATE TABLE IF NOT EXISTS USERS (ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
+                    "name VARCHAR(150) NOT NULL, " +
+                    "username CITEXT NOT NULL UNIQUE CHECK (length(username) <= 150)," +
+                    "password_hash VARCHAR(255) NOT NULL," +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
     }
 }
 
@@ -31,7 +38,8 @@ class UserTableFactoryPostgres : ITableFactory
 {
     override fun createTable(connection: Connection)
     {
-        connection.createStatement().executeUpdate(UsersSchema.CREATE_TABLE_USERS)
+        //TODO: VERIFY
+        connection.createStatement().executeUpdate(UsersSchema.CREATE_TABLE_USERS_PG)
     }
 }
 

@@ -10,6 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.sql.Connection
 import java.sql.Statement
+import java.util.Locale
+import java.util.Locale.getDefault
 
 class TaskRepository(private val connection: Connection, private val factory: ITableFactory, seeder: ITableSeed)
 {
@@ -87,7 +89,7 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     suspend fun tasksByUser(username: String): List<Task> = withContext(Dispatchers.IO)
     {
         val statement = connection.prepareStatement(SELECT_TASK_BY_USER)
-        statement.setString(1, username)
+        statement.setString(1, username.lowercase())
         val resultSet = statement.executeQuery()
         val result = mutableListOf<Task>()
 
@@ -108,13 +110,13 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     suspend fun completedTasks(username: String) :  List<Task> = withContext(Dispatchers.IO)
     {
         val userStatement = connection.prepareStatement("SELECT user FROM users WHERE username = ?")
-        userStatement.setString(1, username)
+        userStatement.setString(1, username.lowercase())
         val userResultSet = userStatement.executeQuery()
 
         if (!userResultSet.next()) throw NotFoundException("User not found")
 
         val statement = connection.prepareStatement(SELECT_COMPLETED_TASK_BY_USER)
-        statement.setString(1, username)
+        statement.setString(1, username.lowercase())
         statement.setInt(2, TaskStatus.COMPLETED.code)
         val resultSet = statement.executeQuery()
         val result = mutableListOf<Task>()
@@ -146,7 +148,7 @@ class TaskRepository(private val connection: Connection, private val factory: IT
         statement.setInt(2, updatedTask.category.code)
         statement.setInt(3, updatedTask.status.code)
         statement.setString(4, updatedTask.description)
-        statement.setString(5, ownershipUsername)
+        statement.setString(5, ownershipUsername.lowercase())
         statement.setString(6, oldTaskName)
         statement.executeUpdate()
     }
@@ -158,7 +160,7 @@ class TaskRepository(private val connection: Connection, private val factory: IT
         statement.setInt(2, task.category.code)
         statement.setInt(3, task.status.code)
         statement.setString(4, task.description)
-        statement.setString(5, ownershipUsername)
+        statement.setString(5, ownershipUsername.lowercase())
         statement.executeUpdate()
 
         val generatedKeys = statement.generatedKeys

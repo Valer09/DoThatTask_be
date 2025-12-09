@@ -46,7 +46,7 @@ class UserRepository(private val connection: Connection, factory: ITableFactory,
     suspend fun userByUsername(username: String): User? = withContext(Dispatchers.IO)
     {
         val statement = connection.prepareStatement(SELECT_USER_BY_USERNAME)
-        statement.setString(1, username)
+        statement.setString(1, username.lowercase())
         val resultSet = statement.executeQuery()
 
         if (resultSet.next()) {
@@ -63,12 +63,12 @@ class UserRepository(private val connection: Connection, factory: ITableFactory,
     {
 
         var statement = connection.prepareStatement(SELECT_USER_BY_USERNAME)
-        statement.setString(1, username)
+        statement.setString(1, username.lowercase())
         var resultSet = statement.executeQuery()
         if (!resultSet.next()) throw NotFoundException("User does not exists")
 
         statement = connection.prepareStatement(GET_PASSWORD_HASH_BY_USERNAME)
-        statement.setString(1, username)
+        statement.setString(1, username.lowercase())
         resultSet = statement.executeQuery()
 
         if (resultSet.next())

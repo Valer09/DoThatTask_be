@@ -13,7 +13,7 @@ import io.ktor.server.routing.*
 fun Application.configureRouting() {
     install(StatusPages) {
         exception<Throwable> { call, cause ->
-            application.log.error("Unhandled exception", cause)
+            call.application.log.error("Unhandled exception", cause)
             call.respondText(text = "Internal server error", status = HttpStatusCode.InternalServerError)
         }
     }

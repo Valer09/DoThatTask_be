@@ -37,7 +37,25 @@ class UserGroupsTableFactoryPostgres : ITableFactory {
 }
 
 class UserGroupsTableSeedH2 : ITableSeed {
-    override fun seed(connection: Connection) {}
+    override fun seed(connection: Connection) {
+        val lookup = connection.prepareStatement("SELECT id FROM groups WHERE name = ?")
+        lookup.setString(1, GroupsTableSeedH2.DEMO_GROUP_NAME)
+        val rs = lookup.executeQuery()
+        if (!rs.next()) return
+        val groupId = rs.getInt("id")
+
+        val insert = connection.prepareStatement(
+            "MERGE INTO user_groups (user_username, group_id, role) KEY(user_username, group_id) VALUES (?, ?, ?)"
+        )
+        val demoUsers = UserTableSeedH2.demoUsers()
+        demoUsers.forEachIndexed { idx, user ->
+            insert.setString(1, user.username)
+            insert.setInt(2, groupId)
+            // Role 2 = ADMIN for the owner (first demo user), 1 = MEMBER for the rest.
+            insert.setInt(3, if (idx == 0) 2 else 1)
+            insert.executeUpdate()
+        }
+    }
 }
 
 class UserGroupsTableSeedPostgres : ITableSeed {

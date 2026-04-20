@@ -35,7 +35,19 @@ class GroupsTableFactoryPostgres : ITableFactory {
 }
 
 class GroupsTableSeedH2 : ITableSeed {
-    override fun seed(connection: Connection) {}
+    override fun seed(connection: Connection) {
+        val owner = UserTableSeedH2.demoUsers().first().username
+        val stmt = connection.prepareStatement(
+            "MERGE INTO groups (name, owner_username) KEY(name) VALUES (?, ?)"
+        )
+        stmt.setString(1, DEMO_GROUP_NAME)
+        stmt.setString(2, owner)
+        stmt.executeUpdate()
+    }
+
+    companion object {
+        const val DEMO_GROUP_NAME = "Demo Group"
+    }
 }
 
 class GroupsTableSeedPostgres : ITableSeed {

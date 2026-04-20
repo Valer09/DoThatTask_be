@@ -2,6 +2,11 @@ package homeaq.dothattask
 
 import homeaq.dothattask.Model.PasswordHash
 import homeaq.dothattask.Model.UserPrincipal
+import homeaq.dothattask.data.repository.GroupRepository
+import homeaq.dothattask.data.repository.InviteRepository
+import homeaq.dothattask.data.repository.RefreshTokenRepository
+import homeaq.dothattask.data.repository.TaskRepository
+import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.repository.UserRepository
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -74,7 +79,19 @@ fun main(args: Array<String>) {
             properties(mapOf("application" to this@module))
         }
 
+        // Force FK-safe table creation order via eager injection.
         val userRepository: UserRepository by inject()
+        val groupRepository: GroupRepository by inject()
+        val userGroupRepository: UserGroupRepository by inject()
+        val taskRepository: TaskRepository by inject()
+        val inviteRepository: InviteRepository by inject()
+        val refreshTokenRepository: RefreshTokenRepository by inject()
+        userRepository.hashCode()
+        groupRepository.hashCode()
+        userGroupRepository.hashCode()
+        taskRepository.hashCode()
+        inviteRepository.hashCode()
+        refreshTokenRepository.hashCode()
 
         install(Authentication) {
             basic("auth-basic") {

@@ -24,6 +24,23 @@ class AuthService(
         return issueTokens(user.username, user.name, groupId)
     }
 
+    /** Returns null if the username is already taken. */
+    suspend fun register(name: String, username: String, password: String): AuthTokens? {
+        val created = users.create(name, username, PasswordHash.hashPassword(password))
+        if (!created) return null
+        return issueTokens(username.lowercase(), name, null)
+    }
+
+    /** Returns true on success; false if the old password does not verify. */
+    suspend fun changePassword(username: String, oldPassword: String, newPassword: String): Boolean {
+        val user = users.userByUsername(username) ?: return false
+        if (!PasswordHash.verifyPassword(oldPassword, user.password_hash)) return false
+        users.updatePasswordHash(user.username, PasswordHash.hashPassword(newPassword))
+        // Sign out every existing session so a stolen credential cannot outlive the rotation.
+        refreshTokens.revokeAllForUser(user.username)
+        return true
+    }
+
     suspend fun refresh(plainRefreshToken: String): AuthTokens? {
         val tokenHash = sha256(plainRefreshToken)
         val existing = refreshTokens.findByHash(tokenHash) ?: return null

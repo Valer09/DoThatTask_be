@@ -26,7 +26,7 @@ fun Application.taskRoutes()
     val taskService by inject<TaskService>()
 
     routing {
-        authenticate("auth-basic") {
+        authenticate("auth-jwt") {
             route("/api/tasks") {
                 get {
                     call.respond(HttpStatusCode.OK, taskService.all().data!!)

@@ -24,6 +24,7 @@ import homeaq.dothattask.data.DBSchema.UserTableFactoryH2
 import homeaq.dothattask.data.DBSchema.UserTableFactoryPostgres
 import homeaq.dothattask.data.DBSchema.UserTableSeedH2
 import homeaq.dothattask.data.DBSchema.UserTableSeedPostgres
+import homeaq.dothattask.Model.auth.JwtConfig
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import homeaq.dothattask.data.repository.GroupRepository
@@ -32,6 +33,7 @@ import homeaq.dothattask.data.repository.RefreshTokenRepository
 import homeaq.dothattask.data.repository.TaskRepository
 import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.repository.UserRepository
+import homeaq.dothattask.data.service.AuthService
 import homeaq.dothattask.data.service.TaskService
 import io.ktor.server.application.Application
 import io.ktor.server.application.log
@@ -165,5 +167,16 @@ val appModule = module {
         get(named("refresh_tokens_table_seed"))) }
 
     single<TaskService> { TaskService(get()) }
+
+    single<JwtConfig> { JwtConfig(get<Application>().environment.config) }
+
+    single<AuthService> {
+        AuthService(
+            jwt = get(),
+            users = get(),
+            refreshTokens = get(),
+            userGroups = get(),
+        )
+    }
 
 }

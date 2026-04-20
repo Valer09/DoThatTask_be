@@ -20,9 +20,7 @@ fun Application.userRoutes()
     routing {
         route("/api/user") {
 
-            authenticate("auth-basic") {
-                // Login check: the client calls this endpoint with Basic Auth credentials.
-                // A 200 response confirms the credentials are valid; 401 means invalid.
+            authenticate("auth-jwt") {
                 get("/me") {
                     val principal = call.principal<UserPrincipal>()
                     call.respond(HttpStatusCode.OK, mapOf("username" to principal?.getUserName(), "name" to principal?.getName()))

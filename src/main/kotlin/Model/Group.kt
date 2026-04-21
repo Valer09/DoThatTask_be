@@ -10,9 +10,22 @@ data class Group(
 )
 
 @Serializable
+data class GroupMember(
+    val username: String,
+    val name: String,
+    val role: GroupRole,
+)
+
+@Serializable
 data class GroupInfo(
     val id: Int,
     val name: String,
     val ownerUsername: String,
-    val members: List<User>,
+    val members: List<GroupMember>,
 )
+
+@Serializable
+data class CreateGroupRequest(val name: String)
+
+@Serializable
+data class SendInviteRequest(val inviteeUsername: String)

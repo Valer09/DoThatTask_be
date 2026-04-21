@@ -34,6 +34,8 @@ import homeaq.dothattask.data.repository.TaskRepository
 import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.repository.UserRepository
 import homeaq.dothattask.data.service.AuthService
+import homeaq.dothattask.data.service.GroupService
+import homeaq.dothattask.data.service.InviteService
 import homeaq.dothattask.data.service.TaskService
 import io.ktor.server.application.Application
 import io.ktor.server.application.log
@@ -176,6 +178,23 @@ val appModule = module {
             users = get(),
             refreshTokens = get(),
             userGroups = get(),
+        )
+    }
+
+    single<GroupService> {
+        GroupService(
+            groups = get(),
+            userGroups = get(),
+            users = get(),
+        )
+    }
+
+    single<InviteService> {
+        InviteService(
+            invites = get(),
+            groups = get(),
+            userGroups = get(),
+            users = get(),
         )
     }
 

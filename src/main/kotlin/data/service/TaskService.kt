@@ -43,9 +43,13 @@ class TaskService(private val taskRepository: TaskRepository)
         return DataResponse.success(true)
     }
 
-    suspend fun unassign(taskName: String, groupId: Int): DataResponse<Boolean> {
+    suspend fun unassign(taskName: String, groupId: Int, callerUsername: String): DataResponse<Boolean> {
         val task = taskRepository.taskByName(taskName, groupId)
             ?: return DataResponse.notFound("No task found with this name")
+        val creator = taskRepository.creatorOf(task.name, groupId)
+        if (creator != null && !creator.equals(callerUsername, ignoreCase = true)) {
+            return DataResponse.forbidden("Only the task creator can unassign it")
+        }
         taskRepository.unAssign(task.name, groupId)
         return DataResponse.success(true)
     }
@@ -84,16 +88,25 @@ class TaskService(private val taskRepository: TaskRepository)
             )
         }
 
+        val creator = taskRepository.creatorOf(existing.name, groupId)
+        if (creator != null && !creator.equals(callerUsername, ignoreCase = true)) {
+            return DataResponse.forbidden("Only the task creator can modify it")
+        }
+
         val newTask = Task.createFromTaskUpdate(taskUpdate, existing.status)
         taskRepository.update(newTask, taskUpdate.oldName, groupId)
         return DataResponse.success(newTask, "Task updated successfully")
     }
 
-    suspend fun delete(name: String, groupId: Int): DataResponse<out Any> {
+    suspend fun delete(name: String, groupId: Int, callerUsername: String): DataResponse<Task> {
         val existing = taskRepository.taskByName(name, groupId)
             ?: return DataResponse.notFound("Given task doesn't exists already")
+        val creator = taskRepository.creatorOf(existing.name, groupId)
+        if (creator != null && !creator.equals(callerUsername, ignoreCase = true)) {
+            return DataResponse.forbidden("Only the task creator can delete it")
+        }
         taskRepository.delete(existing.name, groupId)
-        return DataResponse.success(Unit)
+        return DataResponse.success(existing)
     }
 
     private suspend fun create(task: Task, creatorUsername: String, groupId: Int): DataResponse<Task> {

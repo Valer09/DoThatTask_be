@@ -119,14 +119,16 @@ fun Application.taskRoutes()
                     try {
                         val taskName = call.request.queryParameters["task_name"]
                         if (taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
+                        val principal = call.principal<UserPrincipal>()
+                            ?: return@post call.respond(HttpStatusCode.Unauthorized)
                         val groupId = call.requireGroupId() ?: return@post
 
-                        val response = taskService.unassign(taskName, groupId)
-                        if (response.result == DataResult.NOT_FOUND) return@post call.respond(
-                            HttpStatusCode.NotFound,
-                            message = "No tasks found with this name",
-                        )
-                        call.respond(HttpStatusCode.OK, response.data!!)
+                        val response = taskService.unassign(taskName, groupId, principal.getUserName())
+                        when (response.result) {
+                            DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, "No tasks found with this name")
+                            DataResult.FORBIDDEN -> call.respond(HttpStatusCode.Forbidden, response.message)
+                            else -> call.respond(HttpStatusCode.OK, response.data!!)
+                        }
                     } catch (_: IllegalStateException) {
                         call.respond(HttpStatusCode.BadRequest)
                     } catch (_: JsonConvertException) {
@@ -169,12 +171,17 @@ fun Application.taskRoutes()
                 delete("/{name}") {
                     val name = call.parameters["name"]
                     if (name.isNullOrEmpty()) return@delete call.respond(HttpStatusCode.BadRequest)
+                    val principal = call.principal<UserPrincipal>()
+                        ?: return@delete call.respond(HttpStatusCode.Unauthorized)
                     val groupId = call.requireGroupId() ?: return@delete
 
                     try {
-                        val response = taskService.delete(name, groupId)
-                        if (response.isSuccessful()) call.respond(HttpStatusCode.OK)
-                        else call.respond(HttpStatusCode.NotFound, response.message)
+                        val response = taskService.delete(name, groupId, principal.getUserName())
+                        when (response.result) {
+                            DataResult.SUCCESS -> call.respond(HttpStatusCode.OK)
+                            DataResult.FORBIDDEN -> call.respond(HttpStatusCode.Forbidden, response.message)
+                            else -> call.respond(HttpStatusCode.NotFound, response.message)
+                        }
                     } catch (_: Exception) {
                         call.respond(HttpStatusCode.BadRequest)
                     }

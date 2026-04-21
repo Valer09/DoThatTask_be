@@ -5,189 +5,120 @@ import homeaq.dothattask.Model.TaskCategory
 import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
-import io.ktor.server.plugins.NotFoundException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.sql.Connection
+import java.sql.ResultSet
 import java.sql.Statement
-import java.util.Locale
-import java.util.Locale.getDefault
 
 class TaskRepository(private val connection: Connection, private val factory: ITableFactory, seeder: ITableSeed)
 {
-    private val SELECT_TASK_BY_ID = "SELECT * FROM tasks WHERE id = ?"
-    private val SELECT_TASK_BY_NAME = "SELECT * FROM tasks WHERE name = ?"
-    private val INSERT_TASK = "INSERT INTO tasks (name, category, status, description, user_username) VALUES (?, ?, ?, ?, ?)"
-    private val UPDATE_TASK = "UPDATE tasks SET name = ?, category = ?, status = ?, description = ?, user_username = ? WHERE name = ?"
-    private val DELETE_TASK = "DELETE FROM tasks WHERE name = ?"
-    private val SELECT_TASK_BY_USER = "SELECT * FROM tasks WHERE user_username = ?"
-    private val SELECT_COMPLETED_TASK_BY_USER = "SELECT * FROM tasks WHERE user_username = ? AND status = ?"
+    private val SELECT_ALL_IN_GROUP = "SELECT * FROM tasks WHERE group_id = ?"
+    private val SELECT_TASK_BY_NAME_IN_GROUP = "SELECT * FROM tasks WHERE name = ? AND group_id = ?"
+    private val SELECT_TASK_BY_USER_IN_GROUP = "SELECT * FROM tasks WHERE user_username = ? AND group_id = ?"
+    private val SELECT_COMPLETED_TASK_BY_USER_IN_GROUP =
+        "SELECT * FROM tasks WHERE user_username = ? AND status = ? AND group_id = ?"
+    private val INSERT_TASK =
+        "INSERT INTO tasks (name, category, status, description, user_username, group_id, creator_username) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?)"
+    private val UPDATE_TASK =
+        "UPDATE tasks SET name = ?, category = ?, status = ?, description = ?, user_username = ? " +
+                "WHERE name = ? AND group_id = ?"
+    private val DELETE_TASK = "DELETE FROM tasks WHERE name = ? AND group_id = ?"
+    private val UNASSIGN_TASK = "UPDATE tasks SET status = ? WHERE name = ? AND group_id = ?"
+    private val SELECT_CREATOR = "SELECT creator_username FROM tasks WHERE name = ? AND group_id = ?"
 
     init {
         factory.createTable(connection)
         seeder.seed(connection)
     }
 
-    suspend fun allTasks(): List<Task> = withContext(Dispatchers.IO)
-    {
-        val statement = connection.prepareStatement("SELECT * FROM tasks")
-        val resultSet = statement.executeQuery()
-        val result = mutableListOf<Task>()
-        while (resultSet.next()) {
-            result.add(
-                Task(
-                    name = resultSet.getString("name"),
-                    category = TaskCategory.fromCode(resultSet.getInt("category")),
-                    status = TaskStatus.fromCode(resultSet.getInt("status")),
-                    description = resultSet.getString("description"),
-                    ownership_username = resultSet.getString("user_username")
-                )
-            )
-        }
+    private fun ResultSet.toTask(): Task = Task(
+        name = getString("name"),
+        category = TaskCategory.fromCode(getInt("category")),
+        status = TaskStatus.fromCode(getInt("status")),
+        description = getString("description"),
+        ownership_username = getString("user_username"),
+    )
 
-        return@withContext result
+    suspend fun allTasks(groupId: Int): List<Task> = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(SELECT_ALL_IN_GROUP)
+        stmt.setInt(1, groupId)
+        val rs = stmt.executeQuery()
+        buildList { while (rs.next()) add(rs.toTask()) }
     }
 
-    suspend fun taskById(id: Int): Task? = withContext(Dispatchers.IO)
-    {
-        val statement = connection.prepareStatement(SELECT_TASK_BY_ID)
-        statement.setInt(1, id)
-        val resultSet = statement.executeQuery()
-
-        if (resultSet.next()) {
-            return@withContext Task(
-                resultSet.getString("name"),
-                resultSet.getString("description"),
-                TaskCategory.fromCode(resultSet.getInt("category")),
-                TaskStatus.fromCode(resultSet.getInt("status")),
-                resultSet.getString("user_username")
-            )
-        }
-
-        null
+    suspend fun taskByName(name: String, groupId: Int): Task? = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(SELECT_TASK_BY_NAME_IN_GROUP)
+        stmt.setString(1, name)
+        stmt.setInt(2, groupId)
+        val rs = stmt.executeQuery()
+        if (rs.next()) rs.toTask() else null
     }
 
-    suspend fun taskByName(name: String): Task? = withContext(Dispatchers.IO)
-    {
-        val statement = connection.prepareStatement(SELECT_TASK_BY_NAME)
-        statement.setString(1, name)
-        val resultSet = statement.executeQuery()
-
-        if (resultSet.next()) {
-            return@withContext Task(
-                resultSet.getString("name"),
-                resultSet.getString("description"),
-                TaskCategory.Companion.fromCode(resultSet.getInt("category")),
-                TaskStatus.Companion.fromCode(resultSet.getInt("status")),
-                resultSet.getString("user_username")
-            )
-        }
-
-        null
+    suspend fun tasksByUser(username: String, groupId: Int): List<Task> = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(SELECT_TASK_BY_USER_IN_GROUP)
+        stmt.setString(1, username.lowercase())
+        stmt.setInt(2, groupId)
+        val rs = stmt.executeQuery()
+        buildList { while (rs.next()) add(rs.toTask()) }
     }
 
-    suspend fun tasksByUser(username: String): List<Task> = withContext(Dispatchers.IO)
-    {
-        val statement = connection.prepareStatement(SELECT_TASK_BY_USER)
-        statement.setString(1, username.lowercase())
-        val resultSet = statement.executeQuery()
-        val result = mutableListOf<Task>()
-
-        while (resultSet.next()) {
-            result.add(
-                Task(
-                    name = resultSet.getString("name"),
-                    category = TaskCategory.fromCode(resultSet.getInt("category")),
-                    status = TaskStatus.fromCode(resultSet.getInt("status")),
-                    description = resultSet.getString("description"),
-                    ownership_username = resultSet.getString("user_username")
-                )
-            )
-        }
-        return@withContext result
+    suspend fun completedTasks(username: String, groupId: Int): List<Task> = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(SELECT_COMPLETED_TASK_BY_USER_IN_GROUP)
+        stmt.setString(1, username.lowercase())
+        stmt.setInt(2, TaskStatus.COMPLETED.code)
+        stmt.setInt(3, groupId)
+        val rs = stmt.executeQuery()
+        buildList { while (rs.next()) add(rs.toTask()) }
     }
 
-    suspend fun completedTasks(username: String) :  List<Task> = withContext(Dispatchers.IO)
-    {
-        val userStatement = connection.prepareStatement("SELECT user FROM users WHERE username = ?")
-        userStatement.setString(1, username.lowercase())
-        val userResultSet = userStatement.executeQuery()
-
-        if (!userResultSet.next()) throw NotFoundException("User not found")
-
-        val statement = connection.prepareStatement(SELECT_COMPLETED_TASK_BY_USER)
-        statement.setString(1, username.lowercase())
-        statement.setInt(2, TaskStatus.COMPLETED.code)
-        val resultSet = statement.executeQuery()
-        val result = mutableListOf<Task>()
-
-        while (resultSet.next()) {
-            result.add(
-                Task(
-                    name = resultSet.getString("name"),
-                    category = TaskCategory.fromCode(resultSet.getInt("category")),
-                    status = TaskStatus.fromCode(resultSet.getInt("status")),
-                    description = resultSet.getString("description"),
-                    ownership_username = resultSet.getString("user_username")
-                )
-            )
-        }
-        return@withContext result
+    suspend fun creatorOf(name: String, groupId: Int): String? = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(SELECT_CREATOR)
+        stmt.setString(1, name)
+        stmt.setInt(2, groupId)
+        val rs = stmt.executeQuery()
+        if (rs.next()) rs.getString("creator_username") else null
     }
 
-    suspend fun update(updatedTask: Task, oldTaskName: String, ownershipUsername: String) = withContext(Dispatchers.IO)
-    {
-        val findStm = connection.prepareStatement("SELECT ID FROM tasks WHERE name = ?")
-        findStm.setString(1, oldTaskName)
-        val find = findStm.executeQuery()
-
-        if (!find.next()) throw Exception("Unable to retrieve task")
-
-        val statement = connection.prepareStatement(UPDATE_TASK)
-        statement.setString(1, updatedTask.name)
-        statement.setInt(2, updatedTask.category.code)
-        statement.setInt(3, updatedTask.status.code)
-        statement.setString(4, updatedTask.description)
-        statement.setString(5, ownershipUsername.lowercase())
-        statement.setString(6, oldTaskName)
-        statement.executeUpdate()
+    suspend fun create(task: Task, creatorUsername: String, groupId: Int): Int = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(INSERT_TASK, Statement.RETURN_GENERATED_KEYS)
+        stmt.setString(1, task.name)
+        stmt.setInt(2, task.category.code)
+        stmt.setInt(3, task.status.code)
+        stmt.setString(4, task.description)
+        stmt.setString(5, task.ownership_username.lowercase())
+        stmt.setInt(6, groupId)
+        stmt.setString(7, creatorUsername.lowercase())
+        stmt.executeUpdate()
+        val keys = stmt.generatedKeys
+        if (keys.next()) keys.getInt(1) else -1
     }
 
-    suspend fun create(task: Task, ownershipUsername: String): Int = withContext(Dispatchers.IO)
-    {
-        val statement = connection.prepareStatement(INSERT_TASK, Statement.RETURN_GENERATED_KEYS)
-        statement.setString(1, task.name)
-        statement.setInt(2, task.category.code)
-        statement.setInt(3, task.status.code)
-        statement.setString(4, task.description)
-        statement.setString(5, ownershipUsername.lowercase())
-        statement.executeUpdate()
-
-        val generatedKeys = statement.generatedKeys
-        if (generatedKeys.next()) return@withContext generatedKeys.getInt(1)
-
-        return@withContext -1
+    suspend fun update(updatedTask: Task, oldTaskName: String, groupId: Int): Unit = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(UPDATE_TASK)
+        stmt.setString(1, updatedTask.name)
+        stmt.setInt(2, updatedTask.category.code)
+        stmt.setInt(3, updatedTask.status.code)
+        stmt.setString(4, updatedTask.description)
+        stmt.setString(5, updatedTask.ownership_username.lowercase())
+        stmt.setString(6, oldTaskName)
+        stmt.setInt(7, groupId)
+        stmt.executeUpdate()
     }
 
-    suspend fun delete(name: String): Unit = withContext(Dispatchers.IO)
-    {
-        val findStm = connection.prepareStatement("SELECT ID FROM tasks WHERE name = ?")
-        findStm.setString(1, name)
-        val find = findStm.executeQuery()
-
-        if (!find.next()) throw Exception("Given task doesn't exist already")
-
-        val statement = connection.prepareStatement(DELETE_TASK)
-        statement.setString(1, name)
-        statement.executeUpdate()
+    suspend fun delete(name: String, groupId: Int): Unit = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(DELETE_TASK)
+        stmt.setString(1, name)
+        stmt.setInt(2, groupId)
+        stmt.executeUpdate()
     }
 
-    suspend fun unAssign(taskName: String) : Unit = withContext(Dispatchers.IO)
-    {
-        val sta = TaskStatus.TODO.code
-        val findStm = connection.prepareStatement("UPDATE tasks SET status = ? WHERE name = ?")
-        findStm.setInt(1, sta)
-        findStm.setString(2, taskName)
-        findStm.executeUpdate()
+    suspend fun unAssign(taskName: String, groupId: Int): Unit = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(UNASSIGN_TASK)
+        stmt.setInt(1, TaskStatus.TODO.code)
+        stmt.setString(2, taskName)
+        stmt.setInt(3, groupId)
+        stmt.executeUpdate()
     }
 }

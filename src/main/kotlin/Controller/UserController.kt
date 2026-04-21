@@ -11,7 +11,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import org.koin.ktor.ext.inject
-import kotlin.getValue
 
 fun Application.userRoutes()
 {
@@ -23,14 +22,27 @@ fun Application.userRoutes()
             authenticate("auth-jwt") {
                 get("/me") {
                     val principal = call.principal<UserPrincipal>()
-                    call.respond(HttpStatusCode.OK, mapOf("username" to principal?.getUserName(), "name" to principal?.getName()))
-                    return@get
+                    call.respond(
+                        HttpStatusCode.OK,
+                        mapOf(
+                            "username" to principal?.getUserName(),
+                            "name" to principal?.getName(),
+                            "groupId" to principal?.groupId?.toString(),
+                        ),
+                    )
                 }
 
                 get("/usersLessMe") {
                     val principal = call.principal<UserPrincipal>()
-                    call.respond(HttpStatusCode.OK, userRepository.all().filterNot { it.username == principal?.getUserName() })
-                    return@get
+                    val groupId = principal?.groupId
+                    if (groupId == null) {
+                        call.respond(HttpStatusCode.OK, emptyList<Any>())
+                        return@get
+                    }
+                    call.respond(
+                        HttpStatusCode.OK,
+                        userRepository.allInGroup(groupId).filterNot { it.username == principal.getUserName() },
+                    )
                 }
             }
         }

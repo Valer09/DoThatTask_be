@@ -19,6 +19,21 @@ class UserRepository(private val connection: Connection, factory: ITableFactory,
         seeder.seed(connection)
     }
 
+    suspend fun allInGroup(groupId: Int): List<User> = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(
+            "SELECT u.name, u.username FROM users u " +
+                    "JOIN user_groups ug ON ug.user_username = u.username " +
+                    "WHERE ug.group_id = ?"
+        )
+        stmt.setInt(1, groupId)
+        val rs = stmt.executeQuery()
+        val result = mutableListOf<User>()
+        while (rs.next()) {
+            result.add(User(rs.getString("name"), rs.getString("username"), "better_not"))
+        }
+        result
+    }
+
     suspend fun all(): List<User> = withContext(Dispatchers.IO)
     {
         val statement = connection.prepareStatement(SELECT_ALL)

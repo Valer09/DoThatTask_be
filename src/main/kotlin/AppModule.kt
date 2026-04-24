@@ -175,9 +175,9 @@ val appModule = module {
     single<AuthService> {
         AuthService(
             jwt = get(),
-            users = get(),
-            refreshTokens = get(),
-            userGroups = get(),
+            userRepository = get(),
+            refreshTokenRepository = get(),
+            userGroupRepository = get(),
         )
     }
 

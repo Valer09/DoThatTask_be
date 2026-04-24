@@ -19,6 +19,21 @@ class UserRepository(private val connection: Connection, factory: ITableFactory,
         seeder.seed(connection)
     }
 
+    suspend fun allInGroup(groupId: Int): List<User> = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(
+            "SELECT u.name, u.username FROM users u " +
+                    "JOIN user_groups ug ON ug.user_username = u.username " +
+                    "WHERE ug.group_id = ?"
+        )
+        stmt.setInt(1, groupId)
+        val rs = stmt.executeQuery()
+        val result = mutableListOf<User>()
+        while (rs.next()) {
+            result.add(User(rs.getString("name"), rs.getString("username"), "better_not"))
+        }
+        result
+    }
+
     suspend fun all(): List<User> = withContext(Dispatchers.IO)
     {
         val statement = connection.prepareStatement(SELECT_ALL)
@@ -57,6 +72,28 @@ class UserRepository(private val connection: Connection, factory: ITableFactory,
             )
         }
         null
+    }
+
+    suspend fun create(name: String, username: String, passwordHash: String): Boolean = withContext(Dispatchers.IO) {
+        val exists = connection.prepareStatement(SELECT_USER_BY_USERNAME).apply {
+            setString(1, username.lowercase())
+        }.executeQuery()
+        if (exists.next()) return@withContext false
+
+        val insert = connection.prepareStatement(
+            "INSERT INTO users (name, username, password_hash) VALUES (?, ?, ?)"
+        )
+        insert.setString(1, name)
+        insert.setString(2, username.lowercase())
+        insert.setString(3, passwordHash)
+        insert.executeUpdate() == 1
+    }
+
+    suspend fun updatePasswordHash(username: String, newHash: String): Unit = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement("UPDATE users SET password_hash = ? WHERE username = ?")
+        stmt.setString(1, newHash)
+        stmt.setString(2, username.lowercase())
+        stmt.executeUpdate()
     }
 
     suspend fun passwordHashByUsername(username: String): String = withContext(Dispatchers.IO)

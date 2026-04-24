@@ -1,14 +1,19 @@
 package homeaq.dothattask
 
-import homeaq.dothattask.Model.PasswordHash
 import homeaq.dothattask.Model.UserPrincipal
+import homeaq.dothattask.Model.auth.JwtConfig
+import homeaq.dothattask.data.repository.GroupRepository
+import homeaq.dothattask.data.repository.InviteRepository
+import homeaq.dothattask.data.repository.RefreshTokenRepository
+import homeaq.dothattask.data.repository.TaskRepository
+import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.repository.UserRepository
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.*
 import io.ktor.server.auth.Authentication
-import io.ktor.server.auth.basic
+import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.maxAgeDuration
 import io.ktor.server.plugins.cors.routing.CORS
@@ -74,15 +79,32 @@ fun main(args: Array<String>) {
             properties(mapOf("application" to this@module))
         }
 
+        // Force FK-safe table creation order via eager injection.
         val userRepository: UserRepository by inject()
+        val groupRepository: GroupRepository by inject()
+        val userGroupRepository: UserGroupRepository by inject()
+        val taskRepository: TaskRepository by inject()
+        val inviteRepository: InviteRepository by inject()
+        val refreshTokenRepository: RefreshTokenRepository by inject()
+        userRepository.hashCode()
+        groupRepository.hashCode()
+        userGroupRepository.hashCode()
+        taskRepository.hashCode()
+        inviteRepository.hashCode()
+        refreshTokenRepository.hashCode()
+
+        val jwtConfig: JwtConfig by inject()
 
         install(Authentication) {
-            basic("auth-basic") {
-                realm = "Ktor Server"
-                validate { credentials ->
-                    val user = userRepository.userByUsername(credentials.name)
-                    if (user != null && PasswordHash.verifyPassword(credentials.password, user.password_hash))
-                        UserPrincipal(user.username, user.name) else null
+            jwt("auth-jwt") {
+                realm = jwtConfig.realm
+                verifier(jwtConfig.verifier())
+                validate { credential ->
+                    val username = credential.payload.subject ?: return@validate null
+                    val user = userRepository.userByUsername(username) ?: return@validate null
+                    val gidClaim = credential.payload.getClaim("gid")
+                    val groupId = if (gidClaim.isNull || gidClaim.isMissing) null else gidClaim.asInt()
+                    UserPrincipal(user.username, user.name, groupId)
                 }
             }
         }

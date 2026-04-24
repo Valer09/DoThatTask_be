@@ -9,6 +9,7 @@ import homeaq.dothattask.data.service.TaskService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.JsonConvertException
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -26,119 +27,111 @@ fun Application.taskRoutes()
     val taskService by inject<TaskService>()
 
     routing {
-        authenticate("auth-basic") {
+        authenticate("auth-jwt") {
             route("/api/tasks") {
                 get {
-                    call.respond(HttpStatusCode.OK, taskService.all().data!!)
-                    return@get
+                    val groupId = call.requireGroupId() ?: return@get
+                    call.respond(HttpStatusCode.OK, taskService.all(groupId).data!!)
                 }
 
                 get("/tasksByUser/{username}") {
                     val username = call.parameters["username"]
                     if (username.isNullOrEmpty()) return@get call.respond(HttpStatusCode.BadRequest)
-
-                    call.respond(HttpStatusCode.OK, taskService.tasksByUser(username).data!!)
-                    return@get
+                    val groupId = call.requireGroupId() ?: return@get
+                    call.respond(HttpStatusCode.OK, taskService.tasksByUser(username, groupId).data!!)
                 }
 
                 get("/completed") {
                     val principal = call.principal<UserPrincipal>()
-                    if (principal?.getUserName().isNullOrEmpty()) return@get call.respond(HttpStatusCode.Unauthorized)
+                        ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                    val groupId = call.requireGroupId() ?: return@get
 
-                    val response = taskService.getCompletedTasks(principal.getUserName())
-                    if(response.result == DataResult.NOT_FOUND) return@get call.respond(HttpStatusCode.InternalServerError)
+                    val response = taskService.getCompletedTasks(principal.getUserName(), groupId)
+                    if (response.result == DataResult.NOT_FOUND) return@get call.respond(HttpStatusCode.InternalServerError)
 
                     call.respond(HttpStatusCode.OK, response.data!!)
-                    return@get
                 }
 
                 get("/assignedTask") {
-
                     val principal = call.principal<UserPrincipal>()
-                    if (principal?.getUserName().isNullOrEmpty()) return@get call.respond(HttpStatusCode.Unauthorized)
+                        ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                    val groupId = call.requireGroupId() ?: return@get
 
-                    val task = taskService.assignedTask(principal.getUserName())
-
-                    if (task.result == DataResult.NOT_FOUND) {
-                        call.respond(HttpStatusCode.NotFound)
-                        return@get
-                    }
-
+                    val task = taskService.assignedTask(principal.getUserName(), groupId)
+                    if (task.result == DataResult.NOT_FOUND) return@get call.respond(HttpStatusCode.NotFound)
                     call.respond(HttpStatusCode.OK, task.data!!)
-                    return@get
                 }
 
                 get("/byName/{name}") {
                     val name = call.parameters["name"]
-                    if (name.isNullOrEmpty()) {
-                        call.respond(HttpStatusCode.BadRequest)
-                        return@get
-                    }
-                    val task = taskService.read(name)
-                    if (task.result == DataResult.NOT_FOUND) {
-                        call.respond(HttpStatusCode.NotFound)
-                        return@get
-                    }
+                    if (name.isNullOrEmpty()) return@get call.respond(HttpStatusCode.BadRequest)
+                    val groupId = call.requireGroupId() ?: return@get
+
+                    val task = taskService.read(name, groupId)
+                    if (task.result == DataResult.NOT_FOUND) return@get call.respond(HttpStatusCode.NotFound)
                     call.respond(HttpStatusCode.OK, task.data!!)
                 }
 
                 post {
                     try {
+                        val principal = call.principal<UserPrincipal>()
+                            ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                        val groupId = call.requireGroupId() ?: return@post
+
                         val task = call.receive<TaskUpdate>()
-                        val response = taskService.addOrUpdate(task)
+                        val response = taskService.addOrUpdate(task, principal.getUserName(), groupId)
 
                         if (response.isSuccessful()) call.respond(HttpStatusCode.OK, response.data!!)
                         else handleErrorResponse(response)
-                    } catch (ex: IllegalStateException) {
+                    } catch (_: IllegalStateException) {
                         call.respond(HttpStatusCode.BadRequest)
-                    } catch (ex: JsonConvertException) {
+                    } catch (_: JsonConvertException) {
                         call.respond(HttpStatusCode.BadRequest)
                     }
                 }
 
                 post("/pickTask") {
                     try {
-
-                        val taskName = call.request.queryParameters["category"]
-                        if(taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
+                        val category = call.request.queryParameters["category"]
+                        if (category.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
 
                         val principal = call.principal<UserPrincipal>()
-                        if (principal?.getUserName().isNullOrEmpty()) return@post call.respond(HttpStatusCode.Unauthorized)
+                            ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                        val groupId = call.requireGroupId() ?: return@post
 
-                        val response = taskService.pickTask(principal.getUserName(), taskName)
+                        val response = taskService.pickTask(principal.getUserName(), category, groupId)
                         if (response.result == DataResult.NOT_FOUND) return@post call.respond(
                             HttpStatusCode.NotFound,
-                            message = "No tasks assigned to this user"
+                            message = "No tasks assigned to this user",
                         )
 
-                        val assTask = taskService.assignedTask(principal.getUserName())
-
-                        if (assTask.result == DataResult.NOT_FOUND) return@post call.respond(HttpStatusCode.InternalServerError)
-                        return@post call.respond(HttpStatusCode.OK, assTask.data!!)
-                    } catch (ex: IllegalStateException) {
+                        val assigned = taskService.assignedTask(principal.getUserName(), groupId)
+                        if (assigned.result == DataResult.NOT_FOUND) return@post call.respond(HttpStatusCode.InternalServerError)
+                        call.respond(HttpStatusCode.OK, assigned.data!!)
+                    } catch (_: IllegalStateException) {
                         call.respond(HttpStatusCode.BadRequest)
-                    } catch (ex: JsonConvertException) {
+                    } catch (_: JsonConvertException) {
                         call.respond(HttpStatusCode.BadRequest)
                     }
                 }
 
-
                 post("/unassign") {
                     try {
-
                         val taskName = call.request.queryParameters["task_name"]
-                        if(taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
+                        if (taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
+                        val principal = call.principal<UserPrincipal>()
+                            ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                        val groupId = call.requireGroupId() ?: return@post
 
-                        val response = taskService.unassign(taskName)
-                        if (response.result == DataResult.NOT_FOUND) return@post call.respond(
-                            HttpStatusCode.NotFound,
-                            message = "No tasks faound with this name"
-                        )
-
-                        return@post call.respond(HttpStatusCode.OK, response.data!!)
-                    } catch (ex: IllegalStateException) {
+                        val response = taskService.unassign(taskName, groupId, principal.getUserName())
+                        when (response.result) {
+                            DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, "No tasks found with this name")
+                            DataResult.FORBIDDEN -> call.respond(HttpStatusCode.Forbidden, response.message)
+                            else -> call.respond(HttpStatusCode.OK, response.data!!)
+                        }
+                    } catch (_: IllegalStateException) {
                         call.respond(HttpStatusCode.BadRequest)
-                    } catch (ex: JsonConvertException) {
+                    } catch (_: JsonConvertException) {
                         call.respond(HttpStatusCode.BadRequest)
                     }
                 }
@@ -146,46 +139,50 @@ fun Application.taskRoutes()
                 post("/completeTask") {
                     try {
                         val taskName = call.request.queryParameters["task_name"]
-
                         if (taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
+                        val groupId = call.requireGroupId() ?: return@post
 
-                        val response = taskService.complete(taskName)
-                        if (response.isSuccessful()) return@post call.respond(HttpStatusCode.OK, response.data!!)
+                        val response = taskService.complete(taskName, groupId)
+                        if (response.isSuccessful()) call.respond(HttpStatusCode.OK, response.data!!)
                         else handleErrorResponse(response)
-                    } catch (ex: IllegalStateException) {
+                    } catch (_: IllegalStateException) {
                         call.respond(HttpStatusCode.BadRequest)
-                    } catch (ex: JsonConvertException) {
+                    } catch (_: JsonConvertException) {
                         call.respond(HttpStatusCode.BadRequest)
                     }
                 }
 
                 post("/completeActiveTask") {
                     try {
-
                         val principal = call.principal<UserPrincipal>()
-                        if (principal?.getUserName().isNullOrEmpty()) return@post call.respond(HttpStatusCode.Unauthorized)
+                            ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                        val groupId = call.requireGroupId() ?: return@post
 
-                        val response = taskService.completeActiveTask(principal.getUserName())
-                        if (response.isSuccessful()) return@post call.respond(HttpStatusCode.OK, response.data!!)
+                        val response = taskService.completeActiveTask(principal.getUserName(), groupId)
+                        if (response.isSuccessful()) call.respond(HttpStatusCode.OK, response.data!!)
                         else handleErrorResponse(response)
-                    } catch (ex: IllegalStateException) {
+                    } catch (_: IllegalStateException) {
                         call.respond(HttpStatusCode.BadRequest)
-                    } catch (ex: JsonConvertException) {
+                    } catch (_: JsonConvertException) {
                         call.respond(HttpStatusCode.BadRequest)
                     }
                 }
 
                 delete("/{name}") {
                     val name = call.parameters["name"]
-                    if (name.isNullOrEmpty()) {
-                        call.respond(HttpStatusCode.BadRequest)
-                        return@delete
-                    }
+                    if (name.isNullOrEmpty()) return@delete call.respond(HttpStatusCode.BadRequest)
+                    val principal = call.principal<UserPrincipal>()
+                        ?: return@delete call.respond(HttpStatusCode.Unauthorized)
+                    val groupId = call.requireGroupId() ?: return@delete
+
                     try {
-                        val response = taskService.delete(name)
-                        if (response.isSuccessful()) call.respond(HttpStatusCode.OK)
-                        else call.respond(HttpStatusCode.NotFound, response.message)
-                    } catch (ex: Exception) {
+                        val response = taskService.delete(name, groupId, principal.getUserName())
+                        when (response.result) {
+                            DataResult.SUCCESS -> call.respond(HttpStatusCode.OK)
+                            DataResult.FORBIDDEN -> call.respond(HttpStatusCode.Forbidden, response.message)
+                            else -> call.respond(HttpStatusCode.NotFound, response.message)
+                        }
+                    } catch (_: Exception) {
                         call.respond(HttpStatusCode.BadRequest)
                     }
                 }
@@ -194,12 +191,21 @@ fun Application.taskRoutes()
     }
 }
 
+private suspend fun ApplicationCall.requireGroupId(): Int? {
+    val groupId = principal<UserPrincipal>()?.groupId
+    if (groupId == null) {
+        respond(HttpStatusCode.Forbidden, "User is not a member of any group")
+        return null
+    }
+    return groupId
+}
+
 private suspend fun RoutingContext.handleErrorResponse(response: DataResponse<Task>)
 {
-    when(response.result)
-    {
+    when (response.result) {
         DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, response.message)
         DataResult.VALIDATION_ERROR -> call.respond(HttpStatusCode.BadRequest, response.message)
+        DataResult.FORBIDDEN -> call.respond(HttpStatusCode.Forbidden, response.message)
         else -> call.respond(HttpStatusCode.InternalServerError, response.message)
     }
 }

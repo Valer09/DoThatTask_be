@@ -22,5 +22,6 @@ class DataResponse <T>(result: DataResult, message: String, data: T?)
         fun <T> notFound(message: String = "Not Found"): DataResponse<T> = DataResponse(DataResult.NOT_FOUND, message, null)
         fun <T> validationError(message: String): DataResponse<T> = DataResponse(DataResult.VALIDATION_ERROR, message, null)
         fun <T> databaseError(message: String): DataResponse<T> = DataResponse(DataResult.DATABASE_ERROR, message, null)
+        fun <T> forbidden(message: String = "Forbidden"): DataResponse<T> = DataResponse(DataResult.FORBIDDEN, message, null)
     }
 }

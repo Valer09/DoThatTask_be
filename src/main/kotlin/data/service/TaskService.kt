@@ -6,118 +6,112 @@ import homeaq.dothattask.Model.TaskUpdate
 import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.DataResult
 import homeaq.dothattask.data.repository.TaskRepository
-import io.ktor.server.plugins.NotFoundException
 
 class TaskService(private val taskRepository: TaskRepository)
 {
 
-    suspend fun all(): DataResponse<List<Task>> = DataResponse.success(taskRepository.allTasks())
+    suspend fun all(groupId: Int): DataResponse<List<Task>> =
+        DataResponse.success(taskRepository.allTasks(groupId))
 
-    suspend fun getCompletedTasks(userName: String) : DataResponse<List<Task>>
-    {
-        try
-        {
-            val taskList= taskRepository.completedTasks(userName)
-            if(taskList.isEmpty()) return DataResponse.success(ArrayList<Task>())
-            return DataResponse.success(taskList)
-        }
-        catch(ex : NotFoundException)
-        {
-            return DataResponse.notFound("User not found")
-        }
+    suspend fun getCompletedTasks(userName: String, groupId: Int): DataResponse<List<Task>> =
+        DataResponse.success(taskRepository.completedTasks(userName, groupId))
+
+    suspend fun tasksByUser(username: String, groupId: Int): DataResponse<List<Task>> =
+        DataResponse.success(taskRepository.tasksByUser(username, groupId))
+
+    suspend fun assignedTask(username: String, groupId: Int): DataResponse<Task> {
+        val tasks = taskRepository.tasksByUser(username, groupId)
+        if (tasks.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
+        return tasks.firstOrNull { it.status == TaskStatus.ACTIVE }
+            ?.let { DataResponse.success(it) }
+            ?: DataResponse.notFound("No active tasks assigned to this user")
     }
 
-    suspend fun tasksByUser(username : String): DataResponse<List<Task>> = DataResponse.success(taskRepository.tasksByUser(username))
+    suspend fun pickTask(username: String, category: String, groupId: Int): DataResponse<Boolean> {
+        val tasks = taskRepository.tasksByUser(username, groupId)
+        if (tasks.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
 
-    suspend fun assignedTask(username : String): DataResponse<Task>
-    {
-        val task = taskRepository.tasksByUser(username)
-        if(task.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
-        return task.firstOrNull { it.status == TaskStatus.ACTIVE }?.let { DataResponse.success(it) }?: DataResponse.notFound("No active tasks assigned to this user")
-    }
+        val candidates = tasks.filter { it.status == TaskStatus.TODO && it.category.name == category }
+        if (candidates.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
 
-    suspend fun pickTask(username: String, taskName: String) : DataResponse<Boolean>
-    {
-        val tasks = taskRepository.tasksByUser(username)
-        if(tasks.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
-
-        val filteredTasks = tasks.filter { it.status == TaskStatus.TODO && it.category.name == taskName }
-        if(filteredTasks.count() < 1) return DataResponse.notFound("No tasks assigned to this user")
-
-        val pickedTask = filteredTasks.random()
-
+        val picked = candidates.random()
         taskRepository.update(
-            Task(pickedTask.name, pickedTask.description, pickedTask.category, TaskStatus.ACTIVE, pickedTask.ownership_username),
-            pickedTask.name, pickedTask.ownership_username)
-
-
+            Task(picked.name, picked.description, picked.category, TaskStatus.ACTIVE, picked.ownership_username),
+            picked.name,
+            groupId,
+        )
         return DataResponse.success(true)
     }
 
-    suspend fun unassign(taskName: String) : DataResponse<Boolean>
-    {
-        val task = taskRepository.taskByName(taskName)
-        if(task == null ) return DataResponse.notFound("No task found with this name")
-
-
-        taskRepository.unAssign(taskName)
+    suspend fun unassign(taskName: String, groupId: Int, callerUsername: String): DataResponse<Boolean> {
+        val task = taskRepository.taskByName(taskName, groupId)
+            ?: return DataResponse.notFound("No task found with this name")
+        val creator = taskRepository.creatorOf(task.name, groupId)
+        if (creator != null && !creator.equals(callerUsername, ignoreCase = true)) {
+            return DataResponse.forbidden("Only the task creator can unassign it")
+        }
+        taskRepository.unAssign(task.name, groupId)
         return DataResponse.success(true)
-
     }
 
-    suspend fun complete(taskName: String) : DataResponse<Task>
-    {
-        var taskByName = taskRepository.taskByName(taskName) ?: return DataResponse.notFound("No task with the provided name found")
-
+    suspend fun complete(taskName: String, groupId: Int): DataResponse<Task> {
+        val existing = taskRepository.taskByName(taskName, groupId)
+            ?: return DataResponse.notFound("No task with the provided name found")
         taskRepository.update(
-            Task(
-                taskName,
-                taskByName.description,
-                taskByName.category,
-                TaskStatus.COMPLETED,
-                taskByName.ownership_username), taskName, taskByName.ownership_username)
-
-        taskByName = taskRepository.taskByName(taskName) ?: return DataResponse.databaseError("cannot retrieve updated task")
-
-        return DataResponse.success(taskByName)
+            Task(existing.name, existing.description, existing.category, TaskStatus.COMPLETED, existing.ownership_username),
+            existing.name,
+            groupId,
+        )
+        val updated = taskRepository.taskByName(taskName, groupId)
+            ?: return DataResponse.databaseError("cannot retrieve updated task")
+        return DataResponse.success(updated)
     }
 
-    suspend fun completeActiveTask(username: String): DataResponse<Task>
-    {
-        val result = assignedTask(username).result
-        if(result == DataResult.NOT_FOUND) return DataResponse.notFound("No active tasks assigned to this user")
-        return complete(assignedTask(username).data?.name!!)
+    suspend fun completeActiveTask(username: String, groupId: Int): DataResponse<Task> {
+        val active = assignedTask(username, groupId)
+        if (active.result == DataResult.NOT_FOUND) return DataResponse.notFound("No active tasks assigned to this user")
+        return complete(active.data!!.name, groupId)
     }
 
+    suspend fun read(name: String, groupId: Int): DataResponse<Task?> =
+        taskRepository.taskByName(name, groupId)
+            ?.let { DataResponse.success<Task?>(it) }
+            ?: DataResponse.notFound()
 
-    suspend fun read(name : String): DataResponse<Task?> = taskRepository.taskByName(name) ?.let { DataResponse.success(taskRepository.taskByName(name))}?: DataResponse.Companion.notFound()
+    suspend fun addOrUpdate(taskUpdate: TaskUpdate, callerUsername: String, groupId: Int): DataResponse<Task> {
+        val existing = taskRepository.taskByName(taskUpdate.oldName, groupId)
+        if (existing == null) {
+            return create(
+                Task.createFromTaskUpdate(taskUpdate),
+                creatorUsername = callerUsername,
+                groupId = groupId,
+            )
+        }
 
-    suspend fun addOrUpdate(taskUpdate: TaskUpdate): DataResponse<Task>
-    {
-        val taskByName = taskRepository.taskByName(taskUpdate.oldName) ?:
-        return create(
-            Task.createFromTaskUpdate(taskUpdate),
-            taskUpdate.ownership_username)
+        val creator = taskRepository.creatorOf(existing.name, groupId)
+        if (creator != null && !creator.equals(callerUsername, ignoreCase = true)) {
+            return DataResponse.forbidden("Only the task creator can modify it")
+        }
 
-        val newTask = Task.createFromTaskUpdate(taskUpdate, taskByName.status)
-
-        taskRepository.update(newTask, taskUpdate.oldName, taskUpdate.ownership_username)
-
+        val newTask = Task.createFromTaskUpdate(taskUpdate, existing.status)
+        taskRepository.update(newTask, taskUpdate.oldName, groupId)
         return DataResponse.success(newTask, "Task updated successfully")
     }
 
-    suspend fun delete(name: String): DataResponse<out Any>
-    {
-        val check = read(name)
-
-        if(check.result == DataResult.NOT_FOUND) return DataResponse.Companion.notFound("Given task doesn't exists already")
-
-        return DataResponse.success(taskRepository.delete(name))
+    suspend fun delete(name: String, groupId: Int, callerUsername: String): DataResponse<Task> {
+        val existing = taskRepository.taskByName(name, groupId)
+            ?: return DataResponse.notFound("Given task doesn't exists already")
+        val creator = taskRepository.creatorOf(existing.name, groupId)
+        if (creator != null && !creator.equals(callerUsername, ignoreCase = true)) {
+            return DataResponse.forbidden("Only the task creator can delete it")
+        }
+        taskRepository.delete(existing.name, groupId)
+        return DataResponse.success(existing)
     }
 
-    private suspend fun create(task: Task, ownershipUsername: String): DataResponse<Task> =
-        taskRepository.create(task, ownershipUsername).takeIf { it == -1 }?.
-        let{ DataResponse.Companion.databaseError("Unable to retrieve the id of the newly inserted task") }?:
-        DataResponse.success(task, "Task created successfully")
-
+    private suspend fun create(task: Task, creatorUsername: String, groupId: Int): DataResponse<Task> {
+        val id = taskRepository.create(task, creatorUsername, groupId)
+        return if (id == -1) DataResponse.databaseError("Unable to retrieve the id of the newly inserted task")
+        else DataResponse.success(task, "Task created successfully")
+    }
 }

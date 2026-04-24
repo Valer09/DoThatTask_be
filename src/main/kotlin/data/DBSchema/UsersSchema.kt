@@ -58,14 +58,16 @@ class UserTableSeedH2() : ITableSeed
     }
     companion object
     {
+        // WARNING: Test-only seed for embedded H2 database.
+        // These users are seeded ONLY when DB_EMB=true (local development/testing).
+        // Do NOT use in production — passwords are intentionally weak placeholders.
         fun demoUsers(): List<User> {
             val users = listOf(
                 User(name = "Valerio", username = "valerio99", password_hash = PasswordHash.hashPassword("password1")),
                 User(name = "Jasmin", username = "jasmin99", password_hash = PasswordHash.hashPassword("password2")),
                 User(name = "Nico", username = "nico99", password_hash = PasswordHash.hashPassword("password3")),
                 User(name = "Fernanda", username = "fernanda99", password_hash = PasswordHash.hashPassword("password4")),
-
-                )
+            )
             return users
         }
     }

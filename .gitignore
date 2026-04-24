@@ -36,3 +36,7 @@ out/
 .vscode/
 /.kotlin/sessions/kotlin-compiler-10700527887255916207.salive
 /.kotlin/sessions/*
+
+### Secrets ###
+.env
+*.env

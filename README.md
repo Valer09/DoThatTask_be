@@ -1,45 +1,47 @@
-# dothattask_be
+# DoThatTask — Backend
 
-This project was created using the [Ktor Project Generator](https://start.ktor.io).
+REST API for the **DoThatTask** task-management app, written in **Kotlin** on top of the **Ktor** framework. Exposes authenticated endpoints for user registration/login and full CRUD on tasks, backed by PostgreSQL through the Exposed ORM.
 
-Here are some useful links to get you started:
+## Learning goal
 
-- [Ktor Documentation](https://ktor.io/docs/home.html)
-- [Ktor GitHub page](https://github.com/ktorio/ktor)
-- The [Ktor Slack chat](https://app.slack.com/client/T09229ZC6/C0A974TJ9). You'll need to [request an invite](https://surveys.jetbrains.com/s3/kotlin-slack-sign-up) to join.
+Hands-on practice with **Kotlin** and the **Ktor** web framework — routing DSL, content negotiation, status pages, authentication, and integration with a relational database via Exposed.
 
-## Features
+## Tech stack
 
-Here's a list of features included in this project:
+- **Language:** Kotlin
+- **Framework:** Ktor (Netty engine)
+- **Persistence:** PostgreSQL + Exposed
+- **Auth:** JWT
+- **Serialization:** kotlinx.serialization
+- **Build / Deploy:** Gradle (Kotlin DSL), Docker, docker-compose
 
-| Name                                                                   | Description                                                                        |
-| ------------------------------------------------------------------------|------------------------------------------------------------------------------------ |
-| [Routing](https://start.ktor.io/p/routing)                             | Provides a structured routing DSL                                                  |
-| [kotlinx.serialization](https://start.ktor.io/p/kotlinx-serialization) | Handles JSON serialization using kotlinx.serialization library                     |
-| [Content Negotiation](https://start.ktor.io/p/content-negotiation)     | Provides automatic content conversion according to Content-Type and Accept headers |
-| [Postgres](https://start.ktor.io/p/postgres)                           | Adds Postgres database to your application                                         |
-| [Exposed](https://start.ktor.io/p/exposed)                             | Adds Exposed database to your application                                          |
-| [Status Pages](https://start.ktor.io/p/status-pages)                   | Provides exception handling for routes                                             |
-| [Static Content](https://start.ktor.io/p/static-content)               | Serves static files from defined locations                                         |
-
-## Building & Running
-
-To build or run the project, use one of the following tasks:
-
-| Task                                    | Description                                                          |
-| -----------------------------------------|---------------------------------------------------------------------- |
-| `./gradlew test`                        | Run the tests                                                        |
-| `./gradlew build`                       | Build everything                                                     |
-| `./gradlew buildFatJar`                 | Build an executable JAR of the server with all dependencies included |
-| `./gradlew buildImage`                  | Build the docker image to use with the fat JAR                       |
-| `./gradlew publishImageToLocalRegistry` | Publish the docker image locally                                     |
-| `./gradlew run`                         | Run the server                                                       |
-| `./gradlew runDocker`                   | Run using the local docker image                                     |
-
-If the server starts successfully, you'll see the following output:
+## Project structure
 
 ```
-2024-12-04 14:32:45.584 [main] INFO  Application - Application started in 0.303 seconds.
-2024-12-04 14:32:45.682 [main] INFO  Application - Responding at http://0.0.0.0:8080
+src/main/kotlin/
+├── Application.kt             # Ktor entry point & feature installation
+├── Routing.kt                 # Route configuration
+├── Serialization.kt           # Content negotiation setup
+├── AppModule.kt               # Composition root / DI wiring
+├── Controller/                # TaskController, UserController
+├── Model/                     # Task, User, UserPrincipal
+└── data/
+    ├── DBSchema/              # Exposed table definitions + seed
+    └── repository/            # TaskRepository, UserRepository
 ```
 
+## Build & run
+
+| Task | Command |
+| --- | --- |
+| Run tests | `./gradlew test` |
+| Run locally | `./gradlew run` |
+| Build fat JAR | `./gradlew buildFatJar` |
+| Build Docker image | `./gradlew buildImage` |
+| Run via docker-compose (API + DB) | `docker compose up` |
+
+The API listens on port `8080` by default.
+
+## Companion repository
+
+- Multiplatform client: [DoThatTask_fe](https://github.com/Valer09/DoThatTask_fe)

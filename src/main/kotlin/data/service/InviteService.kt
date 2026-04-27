@@ -15,17 +15,20 @@ class InviteService(
     private val userGroups: UserGroupRepository,
     private val users: UserRepository,
 ) {
-    suspend fun send(inviterUsername: String, inviteeUsername: String): DataResponse<Invite> {
+    /**
+     * Sends an invite for [groupId]. The caller must be the owner of that
+     * group (multi-group: owners can invite to any group they own; the
+     * invitee may already belong to other groups).
+     */
+    suspend fun send(inviterUsername: String, groupId: Int, inviteeUsername: String): DataResponse<Invite> {
         val target = inviteeUsername.trim()
         if (target.isEmpty()) return DataResponse.validationError("Invitee username cannot be empty")
         if (target.equals(inviterUsername, ignoreCase = true)) {
             return DataResponse.validationError("Cannot invite yourself")
         }
 
-        val inviterGroupId = userGroups.groupIdOfUser(inviterUsername)
-            ?: return DataResponse.forbidden("You are not in a group")
-        val group = groups.byId(inviterGroupId)
-            ?: return DataResponse.databaseError("Group not found for inviter")
+        val group = groups.byId(groupId)
+            ?: return DataResponse.notFound("Group not found")
         if (!group.ownerUsername.equals(inviterUsername, ignoreCase = true)) {
             return DataResponse.forbidden("Only the group owner can invite new members")
         }
@@ -33,17 +36,14 @@ class InviteService(
         val invitee = users.userByUsername(target)
             ?: return DataResponse.notFound("No user with username '$target'")
 
-        if (userGroups.isMember(invitee.username, inviterGroupId)) {
+        if (userGroups.isMember(invitee.username, groupId)) {
             return DataResponse.validationError("User is already in this group")
         }
-        if (userGroups.groupIdOfUser(invitee.username) != null) {
-            return DataResponse.validationError("User is already a member of another group")
-        }
-        if (invites.existsPending(inviterGroupId, invitee.username)) {
-            return DataResponse.validationError("A pending invite already exists for this user")
+        if (invites.existsPending(groupId, invitee.username)) {
+            return DataResponse.validationError("A pending invite already exists for this user in this group")
         }
 
-        val id = invites.create(inviterGroupId, inviterUsername, invitee.username)
+        val id = invites.create(groupId, inviterUsername, invitee.username)
         if (id == -1) return DataResponse.databaseError("Unable to create invite")
         val created = invites.byId(id) ?: return DataResponse.databaseError("Invite created but not retrievable")
         return DataResponse.success(created, "Invite sent")
@@ -60,8 +60,8 @@ class InviteService(
         if (invite.status != InviteStatus.PENDING) {
             return DataResponse.validationError("Invite is no longer pending")
         }
-        if (userGroups.groupIdOfUser(username) != null) {
-            return DataResponse.validationError("You are already a member of another group")
+        if (userGroups.isMember(username, invite.groupId)) {
+            return DataResponse.validationError("You are already a member of this group")
         }
         userGroups.addMember(username, invite.groupId, GroupRole.MEMBER)
         invites.updateStatus(inviteId, InviteStatus.ACCEPTED)

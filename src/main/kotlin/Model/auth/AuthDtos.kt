@@ -1,5 +1,6 @@
 package homeaq.dothattask.Model.auth
 
+import homeaq.dothattask.Model.GroupSummary
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -18,7 +19,11 @@ data class RegisterRequest(val name: String, val username: String, val password:
 data class ChangePasswordRequest(val oldPassword: String, val newPassword: String)
 
 @Serializable
-data class AuthenticatedUser(val username: String, val name: String, val groupId: Int?)
+data class AuthenticatedUser(
+    val username: String,
+    val name: String,
+    val groups: List<GroupSummary> = emptyList(),
+)
 
 @Serializable
 data class AuthTokens(

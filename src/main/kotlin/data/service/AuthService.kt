@@ -1,5 +1,6 @@
 package homeaq.dothattask.data.service
 
+import homeaq.dothattask.Model.GroupSummary
 import homeaq.dothattask.Model.PasswordHash
 import homeaq.dothattask.Model.auth.AuthTokens
 import homeaq.dothattask.Model.auth.AuthenticatedUser
@@ -20,15 +21,14 @@ class AuthService(
     suspend fun login(username: String, password: String): AuthTokens? {
         val user = userRepository.userByUsername(username) ?: return null
         if (!PasswordHash.verifyPassword(password, user.password_hash)) return null
-        val groupId = userGroupRepository.groupIdOfUser(user.username)
-        return issueTokens(user.username, user.name, groupId)
+        return issueTokens(user.username, user.name)
     }
 
     /** Returns null if the username is already taken. */
     suspend fun register(name: String, username: String, password: String): AuthTokens? {
         val created = userRepository.create(name, username, PasswordHash.hashPassword(password))
         if (!created) return null
-        return issueTokens(username.lowercase(), name, null)
+        return issueTokens(username.lowercase(), name)
     }
 
     /** Returns true on success; false if the old password does not verify. */
@@ -47,23 +47,25 @@ class AuthService(
         if (existing.revokedAt != null || existing.expiresAt.isBefore(Instant.now())) return null
         refreshTokenRepository.revoke(tokenHash)
         val user = userRepository.userByUsername(existing.userUsername) ?: return null
-        val groupId = userGroupRepository.groupIdOfUser(user.username)
-        return issueTokens(user.username, user.name, groupId)
+        return issueTokens(user.username, user.name)
     }
 
     suspend fun logout(plainRefreshToken: String) {
         refreshTokenRepository.revoke(sha256(plainRefreshToken))
     }
 
-    private suspend fun issueTokens(username: String, name: String, groupId: Int?): AuthTokens {
-        val access = jwt.generateAccessToken(username, groupId)
+    private suspend fun issueTokens(username: String, name: String): AuthTokens {
+        val access = jwt.generateAccessToken(username)
         val refresh = jwt.generateRefreshToken()
         refreshTokenRepository.create(username, sha256(refresh), jwt.refreshExpiry())
+        val groups = userGroupRepository.groupsOfUser(username).map {
+            GroupSummary(id = it.id, name = it.name, color = it.color)
+        }
         return AuthTokens(
             accessToken = access,
             refreshToken = refresh,
             expiresIn = jwt.accessTtlMinutes * 60,
-            user = AuthenticatedUser(username, name, groupId),
+            user = AuthenticatedUser(username, name, groups),
         )
     }
 

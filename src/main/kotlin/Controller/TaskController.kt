@@ -1,15 +1,16 @@
 package homeaq.dothattask.Controller
 
 import homeaq.dothattask.Model.Task
+import homeaq.dothattask.Model.TaskCategory
 import homeaq.dothattask.Model.TaskUpdate
 import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.DataResult
+import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.service.TaskService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.JsonConvertException
 import io.ktor.server.application.Application
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -25,28 +26,49 @@ import org.koin.ktor.ext.inject
 fun Application.taskRoutes()
 {
     val taskService by inject<TaskService>()
+    val userGroups by inject<UserGroupRepository>()
 
     routing {
         authenticate("auth-jwt") {
             route("/api/tasks") {
                 get {
-                    val groupId = call.requireGroupId() ?: return@get
-                    call.respond(HttpStatusCode.OK, taskService.all(groupId).data!!)
+                    val principal = call.principal<UserPrincipal>()
+                        ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                    val groupId = call.requireGroupId(userGroups) ?: return@get
+
+                    val creator = call.request.queryParameters["creator"]
+                    val categoryParam = call.request.queryParameters["category"]
+                    val assignee = call.request.queryParameters["assignee"]
+
+                    val category = categoryParam
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { TaskCategory.fromName(it) }
+                    if (categoryParam != null && categoryParam.isNotBlank() && category == null) {
+                        return@get call.respond(HttpStatusCode.BadRequest, "Unknown category '$categoryParam'")
+                    }
+
+                    val response = taskService.search(
+                        groupId = groupId,
+                        callerUsername = principal.getUserName(),
+                        creator = creator,
+                        category = category,
+                        assignee = assignee,
+                    )
+                    call.respond(HttpStatusCode.OK, response.data!!)
                 }
 
                 get("/tasksByUser/{username}") {
                     val username = call.parameters["username"]
                     if (username.isNullOrEmpty()) return@get call.respond(HttpStatusCode.BadRequest)
-                    val groupId = call.requireGroupId() ?: return@get
+                    val groupId = call.requireGroupId(userGroups) ?: return@get
                     call.respond(HttpStatusCode.OK, taskService.tasksByUser(username, groupId).data!!)
                 }
 
                 get("/completed") {
                     val principal = call.principal<UserPrincipal>()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
-                    val groupId = call.requireGroupId() ?: return@get
 
-                    val response = taskService.getCompletedTasks(principal.getUserName(), groupId)
+                    val response = taskService.getCompletedTasks(principal.getUserName())
                     if (response.result == DataResult.NOT_FOUND) return@get call.respond(HttpStatusCode.InternalServerError)
 
                     call.respond(HttpStatusCode.OK, response.data!!)
@@ -55,9 +77,8 @@ fun Application.taskRoutes()
                 get("/assignedTask") {
                     val principal = call.principal<UserPrincipal>()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
-                    val groupId = call.requireGroupId() ?: return@get
 
-                    val task = taskService.assignedTask(principal.getUserName(), groupId)
+                    val task = taskService.assignedTask(principal.getUserName())
                     if (task.result == DataResult.NOT_FOUND) return@get call.respond(HttpStatusCode.NotFound)
                     call.respond(HttpStatusCode.OK, task.data!!)
                 }
@@ -65,7 +86,7 @@ fun Application.taskRoutes()
                 get("/byName/{name}") {
                     val name = call.parameters["name"]
                     if (name.isNullOrEmpty()) return@get call.respond(HttpStatusCode.BadRequest)
-                    val groupId = call.requireGroupId() ?: return@get
+                    val groupId = call.requireGroupId(userGroups) ?: return@get
 
                     val task = taskService.read(name, groupId)
                     if (task.result == DataResult.NOT_FOUND) return@get call.respond(HttpStatusCode.NotFound)
@@ -76,7 +97,7 @@ fun Application.taskRoutes()
                     try {
                         val principal = call.principal<UserPrincipal>()
                             ?: return@post call.respond(HttpStatusCode.Unauthorized)
-                        val groupId = call.requireGroupId() ?: return@post
+                        val groupId = call.requireGroupId(userGroups) ?: return@post
 
                         val task = call.receive<TaskUpdate>()
                         val response = taskService.addOrUpdate(task, principal.getUserName(), groupId)
@@ -97,15 +118,14 @@ fun Application.taskRoutes()
 
                         val principal = call.principal<UserPrincipal>()
                             ?: return@post call.respond(HttpStatusCode.Unauthorized)
-                        val groupId = call.requireGroupId() ?: return@post
 
-                        val response = taskService.pickTask(principal.getUserName(), category, groupId)
+                        val response = taskService.pickTask(principal.getUserName(), category)
                         if (response.result == DataResult.NOT_FOUND) return@post call.respond(
                             HttpStatusCode.NotFound,
                             message = "No tasks assigned to this user",
                         )
 
-                        val assigned = taskService.assignedTask(principal.getUserName(), groupId)
+                        val assigned = taskService.assignedTask(principal.getUserName())
                         if (assigned.result == DataResult.NOT_FOUND) return@post call.respond(HttpStatusCode.InternalServerError)
                         call.respond(HttpStatusCode.OK, assigned.data!!)
                     } catch (_: IllegalStateException) {
@@ -121,7 +141,7 @@ fun Application.taskRoutes()
                         if (taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
                         val principal = call.principal<UserPrincipal>()
                             ?: return@post call.respond(HttpStatusCode.Unauthorized)
-                        val groupId = call.requireGroupId() ?: return@post
+                        val groupId = call.requireGroupId(userGroups) ?: return@post
 
                         val response = taskService.unassign(taskName, groupId, principal.getUserName())
                         when (response.result) {
@@ -140,7 +160,7 @@ fun Application.taskRoutes()
                     try {
                         val taskName = call.request.queryParameters["task_name"]
                         if (taskName.isNullOrEmpty()) return@post call.respond(HttpStatusCode.BadRequest)
-                        val groupId = call.requireGroupId() ?: return@post
+                        val groupId = call.requireGroupId(userGroups) ?: return@post
 
                         val response = taskService.complete(taskName, groupId)
                         if (response.isSuccessful()) call.respond(HttpStatusCode.OK, response.data!!)
@@ -156,9 +176,8 @@ fun Application.taskRoutes()
                     try {
                         val principal = call.principal<UserPrincipal>()
                             ?: return@post call.respond(HttpStatusCode.Unauthorized)
-                        val groupId = call.requireGroupId() ?: return@post
 
-                        val response = taskService.completeActiveTask(principal.getUserName(), groupId)
+                        val response = taskService.completeActiveTask(principal.getUserName())
                         if (response.isSuccessful()) call.respond(HttpStatusCode.OK, response.data!!)
                         else handleErrorResponse(response)
                     } catch (_: IllegalStateException) {
@@ -173,7 +192,7 @@ fun Application.taskRoutes()
                     if (name.isNullOrEmpty()) return@delete call.respond(HttpStatusCode.BadRequest)
                     val principal = call.principal<UserPrincipal>()
                         ?: return@delete call.respond(HttpStatusCode.Unauthorized)
-                    val groupId = call.requireGroupId() ?: return@delete
+                    val groupId = call.requireGroupId(userGroups) ?: return@delete
 
                     try {
                         val response = taskService.delete(name, groupId, principal.getUserName())
@@ -189,15 +208,6 @@ fun Application.taskRoutes()
             }
         }
     }
-}
-
-private suspend fun ApplicationCall.requireGroupId(): Int? {
-    val groupId = principal<UserPrincipal>()?.groupId
-    if (groupId == null) {
-        respond(HttpStatusCode.Forbidden, "User is not a member of any group")
-        return null
-    }
-    return groupId
 }
 
 private suspend fun RoutingContext.handleErrorResponse(response: DataResponse<Task>)

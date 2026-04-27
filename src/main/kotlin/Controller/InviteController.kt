@@ -3,6 +3,7 @@ package homeaq.dothattask.Controller
 import homeaq.dothattask.Model.SendInviteRequest
 import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.data.DataResult
+import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.service.InviteService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.JsonConvertException
@@ -20,6 +21,7 @@ import org.koin.ktor.ext.inject
 
 fun Application.inviteRoutes() {
     val inviteService by inject<InviteService>()
+    val userGroups by inject<UserGroupRepository>()
 
     routing {
         authenticate("auth-jwt") {
@@ -28,9 +30,10 @@ fun Application.inviteRoutes() {
                 post {
                     val principal = call.principal<UserPrincipal>()
                         ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                    val groupId = call.requireGroupId(userGroups) ?: return@post
                     try {
                         val body = call.receive<SendInviteRequest>()
-                        val response = inviteService.send(principal.getUserName(), body.inviteeUsername)
+                        val response = inviteService.send(principal.getUserName(), groupId, body.inviteeUsername)
                         when (response.result) {
                             DataResult.SUCCESS -> call.respond(HttpStatusCode.Created, response.data!!)
                             DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, response.message)

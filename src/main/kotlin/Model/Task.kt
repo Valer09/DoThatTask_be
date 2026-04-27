@@ -8,10 +8,19 @@ data class Task
     val description: String,
     val category: TaskCategory,
     val status: TaskStatus,
-    val ownership_username: String
+    val ownership_username: String,
+    val groupId: Int = 0,
+    val groupName: String = "",
+    val groupColor: String = "",
 ) {
     companion object {
-        fun createFromTaskUpdate(task: TaskUpdate, overrideStatus: TaskStatus? = null): Task = Task(task.newName, task.description, task.category, overrideStatus ?: task.status, task.ownership_username)
+        fun createFromTaskUpdate(task: TaskUpdate, overrideStatus: TaskStatus? = null): Task = Task(
+            name = task.newName,
+            description = task.description,
+            category = task.category,
+            status = overrideStatus ?: task.status,
+            ownership_username = task.ownership_username,
+        )
     }
 }
 
@@ -44,5 +53,6 @@ enum class TaskCategory(val code: Int)
 
     companion object {
         fun fromCode(code: Int) = entries.first { it.code == code }
+        fun fromName(name: String): TaskCategory? = entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
     }
 }

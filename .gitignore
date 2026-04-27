@@ -40,3 +40,4 @@ out/
 ### Secrets ###
 .env
 *.env
+deploy.txt

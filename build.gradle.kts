@@ -43,6 +43,9 @@ dependencies {
     implementation("io.ktor:ktor-server-auth")
     implementation("io.ktor:ktor-server-auth-jwt")
 
+    // Firebase Admin SDK — push notifications via FCM. Initialization is
+    // tolerant: if no service-account JSON is provided, calls are no-ops.
+    implementation("com.google.firebase:firebase-admin:9.4.3")
 }
 
 kotlin {

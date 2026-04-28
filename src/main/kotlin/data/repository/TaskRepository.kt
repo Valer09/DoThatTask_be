@@ -15,7 +15,8 @@ class TaskRepository(private val connection: Connection, private val factory: IT
 {
     private val SELECT_BASE =
         "SELECT t.name, t.category, t.status, t.description, t.user_username, " +
-                "t.group_id, g.name AS group_name, g.color AS group_color, t.creator_username " +
+                "t.group_id, g.name AS group_name, g.color AS group_color, t.creator_username, " +
+                "t.created_at " +
                 "FROM tasks t JOIN groups g ON g.id = t.group_id"
 
     private val INSERT_TASK =
@@ -42,6 +43,7 @@ class TaskRepository(private val connection: Connection, private val factory: IT
         groupId = getInt("group_id"),
         groupName = getString("group_name"),
         groupColor = getString("group_color"),
+        createdAt = getTimestamp("created_at")?.toInstant()?.toString().orEmpty(),
     )
 
     suspend fun allTasks(groupId: Int): List<Task> = withContext(Dispatchers.IO) {

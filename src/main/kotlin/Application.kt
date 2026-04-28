@@ -2,6 +2,8 @@ package homeaq.dothattask
 
 import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.Model.auth.JwtConfig
+import homeaq.dothattask.Model.notifications.FirebaseConfig
+import homeaq.dothattask.data.repository.FcmTokenRepository
 import homeaq.dothattask.data.repository.GroupRepository
 import homeaq.dothattask.data.repository.InviteRepository
 import homeaq.dothattask.data.repository.RefreshTokenRepository
@@ -88,12 +90,16 @@ fun main(args: Array<String>) {
         val taskRepository: TaskRepository by inject()
         val inviteRepository: InviteRepository by inject()
         val refreshTokenRepository: RefreshTokenRepository by inject()
+        val fcmTokenRepository: FcmTokenRepository by inject()
+        val firebaseConfig: FirebaseConfig by inject()
         userRepository.hashCode()
         groupRepository.hashCode()
         userGroupRepository.hashCode()
         taskRepository.hashCode()
         inviteRepository.hashCode()
         refreshTokenRepository.hashCode()
+        fcmTokenRepository.hashCode()
+        firebaseConfig.hashCode()
 
         val jwtConfig: JwtConfig by inject()
 

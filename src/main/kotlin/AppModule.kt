@@ -25,8 +25,14 @@ import homeaq.dothattask.data.DBSchema.UserTableFactoryPostgres
 import homeaq.dothattask.data.DBSchema.UserTableSeedH2
 import homeaq.dothattask.data.DBSchema.UserTableSeedPostgres
 import homeaq.dothattask.Model.auth.JwtConfig
+import homeaq.dothattask.Model.notifications.FirebaseConfig
+import homeaq.dothattask.data.DBSchema.FcmTokensTableFactoryH2
+import homeaq.dothattask.data.DBSchema.FcmTokensTableFactoryPostgres
+import homeaq.dothattask.data.DBSchema.FcmTokensTableSeedH2
+import homeaq.dothattask.data.DBSchema.FcmTokensTableSeedPostgres
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
+import homeaq.dothattask.data.repository.FcmTokenRepository
 import homeaq.dothattask.data.repository.GroupRepository
 import homeaq.dothattask.data.repository.InviteRepository
 import homeaq.dothattask.data.repository.RefreshTokenRepository
@@ -36,6 +42,7 @@ import homeaq.dothattask.data.repository.UserRepository
 import homeaq.dothattask.data.service.AuthService
 import homeaq.dothattask.data.service.GroupService
 import homeaq.dothattask.data.service.InviteService
+import homeaq.dothattask.data.service.NotificationService
 import homeaq.dothattask.data.service.TaskService
 import io.ktor.server.application.Application
 import io.ktor.server.application.log
@@ -108,6 +115,11 @@ val appModule = module {
         if (useEmbedded) RefreshTokensTableFactoryH2() else RefreshTokensTableFactoryPostgres()
     }
 
+    single<ITableFactory>(qualifier = named("fcm_tokens_table_factory")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) FcmTokensTableFactoryH2() else FcmTokensTableFactoryPostgres()
+    }
+
     single<ITableSeed>(qualifier = named("task_table_seed")) {
         val useEmbedded = get<Boolean>(named("embedded"))
         if (useEmbedded) TaskTableSeedH2() else TaskTableSeedPostgres()
@@ -136,6 +148,11 @@ val appModule = module {
     single<ITableSeed>(qualifier = named("refresh_tokens_table_seed")) {
         val useEmbedded = get<Boolean>(named("embedded"))
         if (useEmbedded) RefreshTokensTableSeedH2() else RefreshTokensTableSeedPostgres()
+    }
+
+    single<ITableSeed>(qualifier = named("fcm_tokens_table_seed")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) FcmTokensTableSeedH2() else FcmTokensTableSeedPostgres()
     }
 
     single<UserRepository> { UserRepository(
@@ -168,7 +185,15 @@ val appModule = module {
         get(named("refresh_tokens_table_factory")),
         get(named("refresh_tokens_table_seed"))) }
 
+    single<FcmTokenRepository> { FcmTokenRepository(
+        get(named("connection")),
+        get(named("fcm_tokens_table_factory")),
+        get(named("fcm_tokens_table_seed"))) }
+
     single<TaskService> { TaskService(get()) }
+
+    single<FirebaseConfig> { FirebaseConfig(get()) }
+    single<NotificationService> { NotificationService(firebase = get(), fcmTokens = get()) }
 
     single<JwtConfig> { JwtConfig(get<Application>().environment.config) }
 

@@ -12,6 +12,7 @@ data class Task
     val groupId: Int = 0,
     val groupName: String = "",
     val groupColor: String = "",
+    val createdAt: String = "",
 ) {
     companion object {
         fun createFromTaskUpdate(task: TaskUpdate, overrideStatus: TaskStatus? = null): Task = Task(

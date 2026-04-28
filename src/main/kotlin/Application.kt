@@ -33,7 +33,7 @@ fun main(args: Array<String>) {
 
 
 
-            val isDev = this@module.environment.config.property("ktor.deployment.environment").getString() == "dev"
+            val isDev = this@module.environment.config.propertyOrNull("ktor.deployment.environment")?.getString() == "dev"
 
             if(isDev)
             {

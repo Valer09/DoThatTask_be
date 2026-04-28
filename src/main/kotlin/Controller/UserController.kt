@@ -2,6 +2,7 @@ package homeaq.dothattask.Controller
 
 import homeaq.dothattask.Model.GroupSummary
 import homeaq.dothattask.Model.UserPrincipal
+import homeaq.dothattask.Model.auth.AuthenticatedUser
 import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.repository.UserRepository
 import io.ktor.http.HttpStatusCode
@@ -30,10 +31,10 @@ fun Application.userRoutes()
                         .map { GroupSummary(id = it.id, name = it.name, color = it.color) }
                     call.respond(
                         HttpStatusCode.OK,
-                        mapOf(
-                            "username" to principal.getUserName(),
-                            "name" to principal.getName(),
-                            "groups" to groups,
+                        AuthenticatedUser(
+                            username = principal.getUserName(),
+                            name = principal.getName(),
+                            groups = groups,
                         ),
                     )
                 }

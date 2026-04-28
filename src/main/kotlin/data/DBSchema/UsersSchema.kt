@@ -82,7 +82,6 @@ class UserTableSeedH2() : ITableSeed
             val users = listOf(
                 User(name = "Francesca", username = "francesca99", password_hash = PasswordHash.hashPassword("password5")),
                 User(name = "Paolino", username = "paolino99", password_hash = PasswordHash.hashPassword("password6")),
-
             )
             return users
         }

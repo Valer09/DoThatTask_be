@@ -1,5 +1,6 @@
 package homeaq.dothattask.data.repository
 
+import homeaq.dothattask.Model.Group
 import homeaq.dothattask.Model.GroupRole
 import homeaq.dothattask.Model.UserGroup
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
@@ -18,13 +19,28 @@ class UserGroupRepository(
         seeder.seed(connection)
     }
 
-    suspend fun groupIdOfUser(username: String): Int? = withContext(Dispatchers.IO) {
+    suspend fun groupsOfUser(username: String): List<Group> = withContext(Dispatchers.IO) {
         val stmt = connection.prepareStatement(
-            "SELECT group_id FROM user_groups WHERE user_username = ? ORDER BY joined_at ASC LIMIT 1"
+            "SELECT g.id, g.name, g.owner_username, g.color " +
+                    "FROM groups g " +
+                    "JOIN user_groups ug ON ug.group_id = g.id " +
+                    "WHERE ug.user_username = ? " +
+                    "ORDER BY ug.joined_at ASC"
         )
         stmt.setString(1, username.lowercase())
         val rs = stmt.executeQuery()
-        if (rs.next()) rs.getInt("group_id") else null
+        buildList {
+            while (rs.next()) {
+                add(
+                    Group(
+                        id = rs.getInt("id"),
+                        name = rs.getString("name"),
+                        ownerUsername = rs.getString("owner_username"),
+                        color = rs.getString("color"),
+                    ),
+                )
+            }
+        }
     }
 
     suspend fun addMember(
@@ -83,6 +99,12 @@ class UserGroupRepository(
             "SELECT COUNT(*) AS c FROM user_groups WHERE group_id = ?"
         )
         stmt.setInt(1, groupId)
+        val rs = stmt.executeQuery()
+        if (rs.next()) rs.getInt("c") else 0
+    }
+
+    suspend fun countAllGroups(): Int = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement("SELECT COUNT(*) AS c FROM groups")
         val rs = stmt.executeQuery()
         if (rs.next()) rs.getInt("c") else 0
     }

@@ -18,6 +18,7 @@ data class Invite(
     val id: Int,
     val groupId: Int,
     val groupName: String,
+    val groupColor: String,
     val inviterUsername: String,
     val inviteeUsername: String,
     val status: InviteStatus,

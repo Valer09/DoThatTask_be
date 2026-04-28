@@ -3,6 +3,7 @@ package homeaq.dothattask.Controller
 import homeaq.dothattask.Model.CreateGroupRequest
 import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.data.DataResult
+import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.service.GroupService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.JsonConvertException
@@ -19,6 +20,7 @@ import org.koin.ktor.ext.inject
 
 fun Application.groupRoutes() {
     val groupService by inject<GroupService>()
+    val userGroups by inject<UserGroupRepository>()
 
     routing {
         authenticate("auth-jwt") {
@@ -46,10 +48,9 @@ fun Application.groupRoutes() {
                 get("/me") {
                     val principal = call.principal<UserPrincipal>()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
-                    val response = groupService.myGroup(principal.getUserName())
+                    val response = groupService.myGroups(principal.getUserName())
                     when (response.result) {
                         DataResult.SUCCESS -> call.respond(HttpStatusCode.OK, response.data!!)
-                        DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NoContent)
                         else -> call.respond(HttpStatusCode.InternalServerError, response.message)
                     }
                 }
@@ -57,7 +58,8 @@ fun Application.groupRoutes() {
                 post("/leave") {
                     val principal = call.principal<UserPrincipal>()
                         ?: return@post call.respond(HttpStatusCode.Unauthorized)
-                    val response = groupService.leave(principal.getUserName())
+                    val groupId = call.requireGroupId(userGroups) ?: return@post
+                    val response = groupService.leave(principal.getUserName(), groupId)
                     when (response.result) {
                         DataResult.SUCCESS -> call.respond(HttpStatusCode.OK, response.message)
                         DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, response.message)

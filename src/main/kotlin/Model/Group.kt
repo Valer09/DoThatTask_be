@@ -7,6 +7,7 @@ data class Group(
     val id: Int,
     val name: String,
     val ownerUsername: String,
+    val color: String,
 )
 
 @Serializable
@@ -21,7 +22,15 @@ data class GroupInfo(
     val id: Int,
     val name: String,
     val ownerUsername: String,
+    val color: String,
     val members: List<GroupMember>,
+)
+
+@Serializable
+data class GroupSummary(
+    val id: Int,
+    val name: String,
+    val color: String,
 )
 
 @Serializable

@@ -20,7 +20,7 @@ class InviteRepository(
         seeder.seed(connection)
     }
 
-    private val BASE_SELECT = "SELECT i.id, i.group_id, g.name AS group_name, " +
+    private val BASE_SELECT = "SELECT i.id, i.group_id, g.name AS group_name, g.color AS group_color, " +
             "i.inviter_username, i.invitee_username, i.status " +
             "FROM invites i JOIN groups g ON g.id = i.group_id"
 
@@ -28,6 +28,7 @@ class InviteRepository(
         id = getInt("id"),
         groupId = getInt("group_id"),
         groupName = getString("group_name"),
+        groupColor = getString("group_color"),
         inviterUsername = getString("inviter_username"),
         inviteeUsername = getString("invitee_username"),
         status = InviteStatus.fromCode(getInt("status")),

@@ -50,6 +50,7 @@ fun main(args: Array<String>) {
 
                 allowHeader(HttpHeaders.ContentType)
                 allowHeader(HttpHeaders.Authorization)
+                allowHeader("X-Group-Id")
                 allowCredentials = true
                 anyHost()
             }
@@ -60,6 +61,7 @@ fun main(args: Array<String>) {
 
                 allowHeader(HttpHeaders.ContentType)
                 allowHeader(HttpHeaders.Authorization)
+                allowHeader("X-Group-Id")
                 allowMethod(HttpMethod.Options)
                 allowMethod(HttpMethod.Get)
                 allowMethod(HttpMethod.Post)
@@ -102,9 +104,7 @@ fun main(args: Array<String>) {
                 validate { credential ->
                     val username = credential.payload.subject ?: return@validate null
                     val user = userRepository.userByUsername(username) ?: return@validate null
-                    val gidClaim = credential.payload.getClaim("gid")
-                    val groupId = if (gidClaim.isNull || gidClaim.isMissing) null else gidClaim.asInt()
-                    UserPrincipal(user.username, user.name, groupId)
+                    UserPrincipal(user.username, user.name)
                 }
             }
         }

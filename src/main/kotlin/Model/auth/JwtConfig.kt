@@ -20,16 +20,15 @@ class JwtConfig(config: ApplicationConfig) {
     private val algorithm: Algorithm = Algorithm.HMAC256(secret)
     private val random: SecureRandom = SecureRandom()
 
-    fun generateAccessToken(username: String, groupId: Int?): String {
+    fun generateAccessToken(username: String): String {
         val now = Instant.now()
-        val builder = JWT.create()
+        return JWT.create()
             .withIssuer(issuer)
             .withAudience(audience)
             .withSubject(username)
             .withIssuedAt(Date.from(now))
             .withExpiresAt(Date.from(now.plusSeconds(accessTtlMinutes * 60)))
-        if (groupId != null) builder.withClaim("gid", groupId)
-        return builder.sign(algorithm)
+            .sign(algorithm)
     }
 
     fun generateRefreshToken(): String {

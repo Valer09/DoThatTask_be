@@ -13,11 +13,11 @@ import java.sql.Statement
 
 class TaskRepository(private val connection: Connection, private val factory: ITableFactory, seeder: ITableSeed)
 {
-    private val SELECT_ALL_IN_GROUP = "SELECT * FROM tasks WHERE group_id = ?"
-    private val SELECT_TASK_BY_NAME_IN_GROUP = "SELECT * FROM tasks WHERE name = ? AND group_id = ?"
-    private val SELECT_TASK_BY_USER_IN_GROUP = "SELECT * FROM tasks WHERE user_username = ? AND group_id = ?"
-    private val SELECT_COMPLETED_TASK_BY_USER_IN_GROUP =
-        "SELECT * FROM tasks WHERE user_username = ? AND status = ? AND group_id = ?"
+    private val SELECT_BASE =
+        "SELECT t.name, t.category, t.status, t.description, t.user_username, " +
+                "t.group_id, g.name AS group_name, g.color AS group_color, t.creator_username " +
+                "FROM tasks t JOIN groups g ON g.id = t.group_id"
+
     private val INSERT_TASK =
         "INSERT INTO tasks (name, category, status, description, user_username, group_id, creator_username) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -39,17 +39,46 @@ class TaskRepository(private val connection: Connection, private val factory: IT
         status = TaskStatus.fromCode(getInt("status")),
         description = getString("description"),
         ownership_username = getString("user_username"),
+        groupId = getInt("group_id"),
+        groupName = getString("group_name"),
+        groupColor = getString("group_color"),
     )
 
     suspend fun allTasks(groupId: Int): List<Task> = withContext(Dispatchers.IO) {
-        val stmt = connection.prepareStatement(SELECT_ALL_IN_GROUP)
+        val stmt = connection.prepareStatement("$SELECT_BASE WHERE t.group_id = ?")
         stmt.setInt(1, groupId)
         val rs = stmt.executeQuery()
         buildList { while (rs.next()) add(rs.toTask()) }
     }
 
+    /**
+     * Search tasks within a group with optional filters. The caller's own
+     * assigned tasks are always excluded so the "secret task" rule holds.
+     */
+    suspend fun searchTasks(
+        groupId: Int,
+        callerUsername: String,
+        creator: String?,
+        category: TaskCategory?,
+        assignee: String?,
+    ): List<Task> = withContext(Dispatchers.IO) {
+        val sql = StringBuilder("$SELECT_BASE WHERE t.group_id = ? AND LOWER(t.user_username) <> LOWER(?)")
+        if (creator != null) sql.append(" AND LOWER(t.creator_username) = LOWER(?)")
+        if (category != null) sql.append(" AND t.category = ?")
+        if (assignee != null) sql.append(" AND LOWER(t.user_username) = LOWER(?)")
+        val stmt = connection.prepareStatement(sql.toString())
+        var idx = 1
+        stmt.setInt(idx++, groupId)
+        stmt.setString(idx++, callerUsername)
+        if (creator != null) stmt.setString(idx++, creator)
+        if (category != null) stmt.setInt(idx++, category.code)
+        if (assignee != null) stmt.setString(idx++, assignee)
+        val rs = stmt.executeQuery()
+        buildList { while (rs.next()) add(rs.toTask()) }
+    }
+
     suspend fun taskByName(name: String, groupId: Int): Task? = withContext(Dispatchers.IO) {
-        val stmt = connection.prepareStatement(SELECT_TASK_BY_NAME_IN_GROUP)
+        val stmt = connection.prepareStatement("$SELECT_BASE WHERE t.name = ? AND t.group_id = ?")
         stmt.setString(1, name)
         stmt.setInt(2, groupId)
         val rs = stmt.executeQuery()
@@ -57,7 +86,7 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     }
 
     suspend fun tasksByUser(username: String, groupId: Int): List<Task> = withContext(Dispatchers.IO) {
-        val stmt = connection.prepareStatement(SELECT_TASK_BY_USER_IN_GROUP)
+        val stmt = connection.prepareStatement("$SELECT_BASE WHERE t.user_username = ? AND t.group_id = ?")
         stmt.setString(1, username.lowercase())
         stmt.setInt(2, groupId)
         val rs = stmt.executeQuery()
@@ -65,10 +94,46 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     }
 
     suspend fun completedTasks(username: String, groupId: Int): List<Task> = withContext(Dispatchers.IO) {
-        val stmt = connection.prepareStatement(SELECT_COMPLETED_TASK_BY_USER_IN_GROUP)
+        val stmt = connection.prepareStatement(
+            "$SELECT_BASE WHERE t.user_username = ? AND t.status = ? AND t.group_id = ?"
+        )
         stmt.setString(1, username.lowercase())
         stmt.setInt(2, TaskStatus.COMPLETED.code)
         stmt.setInt(3, groupId)
+        val rs = stmt.executeQuery()
+        buildList { while (rs.next()) add(rs.toTask()) }
+    }
+
+    /** Aggregate completed tasks across every group the user belongs to. */
+    suspend fun completedTasksAcrossGroups(username: String): List<Task> = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(
+            "$SELECT_BASE WHERE t.user_username = ? AND t.status = ?"
+        )
+        stmt.setString(1, username.lowercase())
+        stmt.setInt(2, TaskStatus.COMPLETED.code)
+        val rs = stmt.executeQuery()
+        buildList { while (rs.next()) add(rs.toTask()) }
+    }
+
+    /** Active task assigned to the user across every group they belong to (at most one). */
+    suspend fun activeTaskAcrossGroups(username: String): Task? = withContext(Dispatchers.IO) {
+        val stmt = connection.prepareStatement(
+            "$SELECT_BASE WHERE t.user_username = ? AND t.status = ?"
+        )
+        stmt.setString(1, username.lowercase())
+        stmt.setInt(2, TaskStatus.ACTIVE.code)
+        val rs = stmt.executeQuery()
+        if (rs.next()) rs.toTask() else null
+    }
+
+    /** Returns every TODO task assigned to the user across all groups, optionally filtered by category. */
+    suspend fun todoTasksAcrossGroups(username: String, category: TaskCategory?): List<Task> = withContext(Dispatchers.IO) {
+        val sql = StringBuilder("$SELECT_BASE WHERE t.user_username = ? AND t.status = ?")
+        if (category != null) sql.append(" AND t.category = ?")
+        val stmt = connection.prepareStatement(sql.toString())
+        stmt.setString(1, username.lowercase())
+        stmt.setInt(2, TaskStatus.TODO.code)
+        if (category != null) stmt.setInt(3, category.code)
         val rs = stmt.executeQuery()
         buildList { while (rs.next()) add(rs.toTask()) }
     }

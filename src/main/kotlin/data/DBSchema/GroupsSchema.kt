@@ -45,11 +45,20 @@ class GroupsTableFactoryPostgres : ITableFactory {
 
 class GroupsTableSeedH2 : ITableSeed {
     override fun seed(connection: Connection) {
-        val owner = UserTableSeedH2.demoUsers().first().username
-        val stmt = connection.prepareStatement(
+        var owner = UserTableSeedH2.demoUsers().first().username
+        var stmt = connection.prepareStatement(
             "MERGE INTO groups (name, owner_username, color) KEY(name) VALUES (?, ?, ?)"
         )
         stmt.setString(1, DEMO_GROUP_NAME)
+        stmt.setString(2, owner)
+        stmt.setString(3, GroupsSchema.DEFAULT_COLOR)
+        stmt.executeUpdate()
+
+        owner = UserTableSeedH2.demoUsersAlt().first().username
+        stmt = connection.prepareStatement(
+            "MERGE INTO groups (name, owner_username, color) KEY(name) VALUES (?, ?, ?)"
+        )
+        stmt.setString(1, DEMO_GROUP_NAME_ALT)
         stmt.setString(2, owner)
         stmt.setString(3, GroupsSchema.DEFAULT_COLOR)
         stmt.executeUpdate()
@@ -57,6 +66,7 @@ class GroupsTableSeedH2 : ITableSeed {
 
     companion object {
         const val DEMO_GROUP_NAME = "Demo Group"
+        const val DEMO_GROUP_NAME_ALT = "Demo Group"
     }
 }
 

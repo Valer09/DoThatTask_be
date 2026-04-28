@@ -112,10 +112,11 @@ class TaskTableSeedH2() : ITableSeed
     {
         UserTableSeedH2().seed(connection)
         val demoUsers = UserTableSeedH2.Companion.demoUsers()
+        val demoUsersAlt = UserTableSeedH2.Companion.demoUsersAlt()
 
         val demoGroupIdStmt = connection.prepareStatement("SELECT id FROM groups WHERE name = ?")
         demoGroupIdStmt.setString(1, GroupsTableSeedH2.DEMO_GROUP_NAME)
-        val rs = demoGroupIdStmt.executeQuery()
+        var rs = demoGroupIdStmt.executeQuery()
         val demoGroupId = if (rs.next()) rs.getInt("id") else error("Demo group seed missing")
 
         val tasks = listOf(
@@ -126,11 +127,13 @@ class TaskTableSeedH2() : ITableSeed
             Task("Cooking", "Cook the dinner", TaskCategory.Social,TaskStatus.TODO, demoUsers[0 % demoUsers.size].username),
             Task("Relaxing", "Take a walk", TaskCategory.Career,TaskStatus.TODO, demoUsers[1 % demoUsers.size].username),
             Task("Exercising", "Go to the gym", TaskCategory.Social,TaskStatus.TODO, demoUsers[2 % demoUsers.size].username),
-            Task("Learning", "Read a book", TaskCategory.Career,TaskStatus.ACTIVE, demoUsers[3 % demoUsers.size].username),
-            Task("Snoozing", "Go for a nap", TaskCategory.Career,TaskStatus.TODO, demoUsers[0 % demoUsers.size].username),
-            Task("Socializing", "Go to a party", TaskCategory.Health,TaskStatus.TODO, demoUsers[1 % demoUsers.size].username),
         )
 
+        var tasksAlt = listOf(
+            Task("Learning", "Read a book", TaskCategory.Career,TaskStatus.ACTIVE, demoUsers[0 % demoUsersAlt.size].username),
+            Task("Snoozing", "Go for a nap", TaskCategory.Career,TaskStatus.TODO, demoUsers[1 % demoUsersAlt.size].username),
+            Task("Socializing", "Go to a party", TaskCategory.Health,TaskStatus.TODO, demoUsers[2 % demoUsersAlt.size].username),
+        )
         val statement = connection.prepareStatement(
             "MERGE INTO tasks (name, category, status, description, user_username, group_id, creator_username) " +
                     "KEY(name) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -145,6 +148,23 @@ class TaskTableSeedH2() : ITableSeed
             statement.setString(4, task.description)
             statement.setString(5, task.ownership_username)
             statement.setInt(6, demoGroupId)
+            statement.setString(7, creator)
+            statement.executeUpdate()
+        }
+
+        demoGroupIdStmt.setString(1, GroupsTableSeedH2.DEMO_GROUP_NAME_ALT)
+        rs = demoGroupIdStmt.executeQuery()
+        val demoGroupId_alt = if (rs.next()) rs.getInt("id") else error("Demo group seed missing")
+
+        tasks.forEachIndexed { idx, task ->
+            // Creator is a different demo user than the owner, so the creator-only rule is testable.
+            val creator = demoUsers[(idx + 1) % demoUsers.size].username
+            statement.setString(1, task.name)
+            statement.setInt(2, task.category.code)
+            statement.setInt(3, task.status.code)
+            statement.setString(4, task.description)
+            statement.setString(5, task.ownership_username)
+            statement.setInt(6, demoGroupId_alt)
             statement.setString(7, creator)
             statement.executeUpdate()
         }

@@ -55,6 +55,13 @@ class UserTableSeedH2() : ITableSeed
             statement.setString(3, it.password_hash)
             statement.executeUpdate()
         }
+
+        demoUsersAlt().forEach {
+            statement.setString(1, it.name)
+            statement.setString(2, it.username)
+            statement.setString(3, it.password_hash)
+            statement.executeUpdate()
+        }
     }
     companion object
     {
@@ -70,6 +77,16 @@ class UserTableSeedH2() : ITableSeed
             )
             return users
         }
+
+        fun demoUsersAlt(): List<User> {
+            val users = listOf(
+                User(name = "Francesca", username = "francesca99", password_hash = PasswordHash.hashPassword("password5")),
+                User(name = "Paolino", username = "paolino99", password_hash = PasswordHash.hashPassword("password6")),
+
+            )
+            return users
+        }
+
     }
 }
 

@@ -1,14 +1,17 @@
 package homeaq.dothattask.data.service
 
 import homeaq.dothattask.Model.Task
-import homeaq.dothattask.Model.TaskCategory
 import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.Model.TaskUpdate
 import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.DataResult
+import homeaq.dothattask.data.repository.CategoryRepository
 import homeaq.dothattask.data.repository.TaskRepository
 
-class TaskService(private val taskRepository: TaskRepository)
+class TaskService(
+    private val taskRepository: TaskRepository,
+    private val categoryRepository: CategoryRepository,
+)
 {
 
     suspend fun all(groupId: Int): DataResponse<List<Task>> =
@@ -17,19 +20,29 @@ class TaskService(private val taskRepository: TaskRepository)
     /**
      * Search tasks within a group with optional filters. Tasks assigned to the
      * caller are always excluded (so the "secret task" rule still holds).
+     *
+     * [categoryName] is matched case-insensitively against the global
+     * categories table; if no match exists in the active group's category
+     * list, the filter is ignored (returns no results rather than an error).
      */
     suspend fun search(
         groupId: Int,
         callerUsername: String,
         creator: String?,
-        category: TaskCategory?,
+        categoryName: String?,
         assignee: String?,
     ): DataResponse<List<Task>> {
+        val resolvedCategoryId = categoryName?.takeIf { it.isNotBlank() }?.let { name ->
+            categoryRepository.byNameInsensitive(name)?.id
+        }
+        if (categoryName != null && categoryName.isNotBlank() && resolvedCategoryId == null) {
+            return DataResponse.validationError("Unknown category '$categoryName'")
+        }
         val list = taskRepository.searchTasks(
             groupId = groupId,
             callerUsername = callerUsername,
             creator = creator?.takeIf { it.isNotBlank() },
-            category = category,
+            categoryId = resolvedCategoryId,
             assignee = assignee?.takeIf { it.isNotBlank() },
         )
         return DataResponse.success(list)
@@ -48,9 +61,9 @@ class TaskService(private val taskRepository: TaskRepository)
     }
 
     suspend fun pickTask(username: String, category: String): DataResponse<Boolean> {
-        val parsedCategory = TaskCategory.fromName(category)
+        val resolved = categoryRepository.byNameInsensitive(category)
             ?: return DataResponse.validationError("Unknown category '$category'")
-        val candidates = taskRepository.todoTasksAcrossGroups(username, parsedCategory)
+        val candidates = taskRepository.todoTasksAcrossGroups(username, resolved.id)
         if (candidates.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
 
         val picked = candidates.random()
@@ -110,10 +123,23 @@ class TaskService(private val taskRepository: TaskRepository)
             ?: DataResponse.notFound()
 
     suspend fun addOrUpdate(taskUpdate: TaskUpdate, callerUsername: String, groupId: Int): DataResponse<Task> {
-        val existing = taskRepository.taskByName(taskUpdate.oldName, groupId)
+        // The category must be linked to the active group. The client may
+        // send only an id (typical) or a full {id, name, color} triple — we
+        // re-resolve the canonical record from the repository either way.
+        val resolvedCategory = when {
+            taskUpdate.category.id > 0 ->
+                categoryRepository.byId(taskUpdate.category.id).takeIf { it != null && categoryRepository.isLinkedToGroup(groupId, it.id) }
+            taskUpdate.category.name.isNotBlank() ->
+                categoryRepository.byNameInsensitive(taskUpdate.category.name).takeIf { it != null && categoryRepository.isLinkedToGroup(groupId, it.id) }
+            else -> null
+        } ?: return DataResponse.validationError("Category is not available in this group")
+
+        val normalizedUpdate = taskUpdate.copy(category = resolvedCategory)
+
+        val existing = taskRepository.taskByName(normalizedUpdate.oldName, groupId)
         if (existing == null) {
             return create(
-                Task.createFromTaskUpdate(taskUpdate),
+                Task.createFromTaskUpdate(normalizedUpdate),
                 creatorUsername = callerUsername,
                 groupId = groupId,
             )
@@ -124,8 +150,8 @@ class TaskService(private val taskRepository: TaskRepository)
             return DataResponse.forbidden("Only the task creator can modify it")
         }
 
-        val newTask = Task.createFromTaskUpdate(taskUpdate, existing.status)
-        taskRepository.update(newTask, taskUpdate.oldName, groupId)
+        val newTask = Task.createFromTaskUpdate(normalizedUpdate, existing.status)
+        taskRepository.update(newTask, normalizedUpdate.oldName, groupId)
         val refreshed = taskRepository.taskByName(newTask.name, groupId) ?: newTask
         return DataResponse.success(refreshed, "Task updated successfully")
     }

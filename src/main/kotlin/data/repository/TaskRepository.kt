@@ -16,8 +16,10 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     private val SELECT_BASE =
         "SELECT t.name, t.category, t.status, t.description, t.user_username, " +
                 "t.group_id, g.name AS group_name, g.color AS group_color, t.creator_username, " +
-                "t.created_at " +
-                "FROM tasks t JOIN groups g ON g.id = t.group_id"
+                "t.created_at, c.name AS category_name, c.color AS category_color " +
+                "FROM tasks t " +
+                "JOIN groups g ON g.id = t.group_id " +
+                "LEFT JOIN categories c ON c.id = t.category"
 
     private val INSERT_TASK =
         "INSERT INTO tasks (name, category, status, description, user_username, group_id, creator_username) " +
@@ -36,7 +38,11 @@ class TaskRepository(private val connection: Connection, private val factory: IT
 
     private fun ResultSet.toTask(): Task = Task(
         name = getString("name"),
-        category = TaskCategory.fromCode(getInt("category")),
+        category = TaskCategory(
+            id = getInt("category"),
+            name = getString("category_name").orEmpty(),
+            color = getString("category_color").orEmpty(),
+        ),
         status = TaskStatus.fromCode(getInt("status")),
         description = getString("description"),
         ownership_username = getString("user_username"),
@@ -61,19 +67,19 @@ class TaskRepository(private val connection: Connection, private val factory: IT
         groupId: Int,
         callerUsername: String,
         creator: String?,
-        category: TaskCategory?,
+        categoryId: Int?,
         assignee: String?,
     ): List<Task> = withContext(Dispatchers.IO) {
         val sql = StringBuilder("$SELECT_BASE WHERE t.group_id = ? AND LOWER(t.user_username) <> LOWER(?)")
         if (creator != null) sql.append(" AND LOWER(t.creator_username) = LOWER(?)")
-        if (category != null) sql.append(" AND t.category = ?")
+        if (categoryId != null) sql.append(" AND t.category = ?")
         if (assignee != null) sql.append(" AND LOWER(t.user_username) = LOWER(?)")
         val stmt = connection.prepareStatement(sql.toString())
         var idx = 1
         stmt.setInt(idx++, groupId)
         stmt.setString(idx++, callerUsername)
         if (creator != null) stmt.setString(idx++, creator)
-        if (category != null) stmt.setInt(idx++, category.code)
+        if (categoryId != null) stmt.setInt(idx++, categoryId)
         if (assignee != null) stmt.setString(idx++, assignee)
         val rs = stmt.executeQuery()
         buildList { while (rs.next()) add(rs.toTask()) }
@@ -128,14 +134,14 @@ class TaskRepository(private val connection: Connection, private val factory: IT
         if (rs.next()) rs.toTask() else null
     }
 
-    /** Returns every TODO task assigned to the user across all groups, optionally filtered by category. */
-    suspend fun todoTasksAcrossGroups(username: String, category: TaskCategory?): List<Task> = withContext(Dispatchers.IO) {
+    /** Returns every TODO task assigned to the user across all groups, optionally filtered by category id. */
+    suspend fun todoTasksAcrossGroups(username: String, categoryId: Int?): List<Task> = withContext(Dispatchers.IO) {
         val sql = StringBuilder("$SELECT_BASE WHERE t.user_username = ? AND t.status = ?")
-        if (category != null) sql.append(" AND t.category = ?")
+        if (categoryId != null) sql.append(" AND t.category = ?")
         val stmt = connection.prepareStatement(sql.toString())
         stmt.setString(1, username.lowercase())
         stmt.setInt(2, TaskStatus.TODO.code)
-        if (category != null) stmt.setInt(3, category.code)
+        if (categoryId != null) stmt.setInt(3, categoryId)
         val rs = stmt.executeQuery()
         buildList { while (rs.next()) add(rs.toTask()) }
     }
@@ -151,7 +157,7 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     suspend fun create(task: Task, creatorUsername: String, groupId: Int): Int = withContext(Dispatchers.IO) {
         val stmt = connection.prepareStatement(INSERT_TASK, Statement.RETURN_GENERATED_KEYS)
         stmt.setString(1, task.name)
-        stmt.setInt(2, task.category.code)
+        stmt.setInt(2, task.category.id)
         stmt.setInt(3, task.status.code)
         stmt.setString(4, task.description)
         stmt.setString(5, task.ownership_username.lowercase())
@@ -165,7 +171,7 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     suspend fun update(updatedTask: Task, oldTaskName: String, groupId: Int): Unit = withContext(Dispatchers.IO) {
         val stmt = connection.prepareStatement(UPDATE_TASK)
         stmt.setString(1, updatedTask.name)
-        stmt.setInt(2, updatedTask.category.code)
+        stmt.setInt(2, updatedTask.category.id)
         stmt.setInt(3, updatedTask.status.code)
         stmt.setString(4, updatedTask.description)
         stmt.setString(5, updatedTask.ownership_username.lowercase())

@@ -1,7 +1,6 @@
 package homeaq.dothattask.Controller
 
 import homeaq.dothattask.Model.Task
-import homeaq.dothattask.Model.TaskCategory
 import homeaq.dothattask.Model.TaskUpdate
 import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.data.DataResponse
@@ -40,21 +39,18 @@ fun Application.taskRoutes()
                     val categoryParam = call.request.queryParameters["category"]
                     val assignee = call.request.queryParameters["assignee"]
 
-                    val category = categoryParam
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let { TaskCategory.fromName(it) }
-                    if (categoryParam != null && categoryParam.isNotBlank() && category == null) {
-                        return@get call.respond(HttpStatusCode.BadRequest, "Unknown category '$categoryParam'")
-                    }
-
                     val response = taskService.search(
                         groupId = groupId,
                         callerUsername = principal.getUserName(),
                         creator = creator,
-                        category = category,
+                        categoryName = categoryParam,
                         assignee = assignee,
                     )
-                    call.respond(HttpStatusCode.OK, response.data!!)
+                    when (response.result) {
+                        DataResult.SUCCESS -> call.respond(HttpStatusCode.OK, response.data!!)
+                        DataResult.VALIDATION_ERROR -> call.respond(HttpStatusCode.BadRequest, response.message)
+                        else -> call.respond(HttpStatusCode.InternalServerError, response.message)
+                    }
                 }
 
                 get("/tasksByUser/{username}") {

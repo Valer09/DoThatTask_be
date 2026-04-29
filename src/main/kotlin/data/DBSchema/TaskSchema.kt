@@ -151,7 +151,7 @@ class TaskTableSeedH2() : ITableSeed
             // Creator is a different demo user than the owner, so the creator-only rule is testable.
             val creator = demoUsers[(idx + 1) % demoUsers.size].username
             statement.setString(1, task.name)
-            statement.setInt(2, task.category.code)
+            statement.setInt(2, task.category.id)
             statement.setInt(3, task.status.code)
             statement.setString(4, task.description)
             statement.setString(5, task.ownership_username)
@@ -168,7 +168,7 @@ class TaskTableSeedH2() : ITableSeed
             // Creator is a different demo user than the owner, so the creator-only rule is testable.
             val creator = demoUsers[(idx + 1) % demoUsers.size].username
             statement.setString(1, task.name)
-            statement.setInt(2, task.category.code)
+            statement.setInt(2, task.category.id)
             statement.setInt(3, task.status.code)
             statement.setString(4, task.description)
             statement.setString(5, task.ownership_username)

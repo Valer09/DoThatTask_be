@@ -36,6 +36,12 @@ sealed class TasksSchema
         const val ALTER_TASKS_ADD_CREATOR_PG =
             "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS creator_username CITEXT"
 
+        const val ALTER_TASKS_ADD_CREATED_AT_H2 =
+            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+
+        const val ALTER_TASKS_ADD_CREATED_AT_PG =
+            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()"
+
         const val LEGACY_GROUP_NAME = "Legacy"
     }
 }
@@ -89,6 +95,7 @@ class TaskTableFactoryH2 : ITableFactory
         connection.createStatement().executeUpdate(TasksSchema.CREATE_TABLE_TASKS)
         connection.createStatement().executeUpdate(TasksSchema.ALTER_TASKS_ADD_GROUP_ID)
         connection.createStatement().executeUpdate(TasksSchema.ALTER_TASKS_ADD_CREATOR_H2)
+        connection.createStatement().executeUpdate(TasksSchema.ALTER_TASKS_ADD_CREATED_AT_H2)
         backfillTasks(connection)
     }
 }
@@ -101,6 +108,7 @@ class TaskTableFactoryPostgres : ITableFactory
         connection.createStatement().executeUpdate(TasksSchema.CREATE_TABLE_TASKS_PG)
         connection.createStatement().executeUpdate(TasksSchema.ALTER_TASKS_ADD_GROUP_ID)
         connection.createStatement().executeUpdate(TasksSchema.ALTER_TASKS_ADD_CREATOR_PG)
+        connection.createStatement().executeUpdate(TasksSchema.ALTER_TASKS_ADD_CREATED_AT_PG)
         backfillTasks(connection)
     }
 }

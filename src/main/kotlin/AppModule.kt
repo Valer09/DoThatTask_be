@@ -26,12 +26,21 @@ import homeaq.dothattask.data.DBSchema.UserTableSeedH2
 import homeaq.dothattask.data.DBSchema.UserTableSeedPostgres
 import homeaq.dothattask.Model.auth.JwtConfig
 import homeaq.dothattask.Model.notifications.FirebaseConfig
+import homeaq.dothattask.data.DBSchema.CategoriesTableFactoryH2
+import homeaq.dothattask.data.DBSchema.CategoriesTableFactoryPostgres
+import homeaq.dothattask.data.DBSchema.CategoriesTableSeedH2
+import homeaq.dothattask.data.DBSchema.CategoriesTableSeedPostgres
 import homeaq.dothattask.data.DBSchema.FcmTokensTableFactoryH2
 import homeaq.dothattask.data.DBSchema.FcmTokensTableFactoryPostgres
 import homeaq.dothattask.data.DBSchema.FcmTokensTableSeedH2
 import homeaq.dothattask.data.DBSchema.FcmTokensTableSeedPostgres
+import homeaq.dothattask.data.DBSchema.GroupCategoriesTableFactoryH2
+import homeaq.dothattask.data.DBSchema.GroupCategoriesTableFactoryPostgres
+import homeaq.dothattask.data.DBSchema.GroupCategoriesTableSeedH2
+import homeaq.dothattask.data.DBSchema.GroupCategoriesTableSeedPostgres
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
+import homeaq.dothattask.data.repository.CategoryRepository
 import homeaq.dothattask.data.repository.FcmTokenRepository
 import homeaq.dothattask.data.repository.GroupRepository
 import homeaq.dothattask.data.repository.InviteRepository
@@ -40,6 +49,7 @@ import homeaq.dothattask.data.repository.TaskRepository
 import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.repository.UserRepository
 import homeaq.dothattask.data.service.AuthService
+import homeaq.dothattask.data.service.CategoryService
 import homeaq.dothattask.data.service.GroupService
 import homeaq.dothattask.data.service.InviteService
 import homeaq.dothattask.data.service.NotificationService
@@ -120,6 +130,16 @@ val appModule = module {
         if (useEmbedded) FcmTokensTableFactoryH2() else FcmTokensTableFactoryPostgres()
     }
 
+    single<ITableFactory>(qualifier = named("categories_table_factory")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) CategoriesTableFactoryH2() else CategoriesTableFactoryPostgres()
+    }
+
+    single<ITableFactory>(qualifier = named("group_categories_table_factory")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) GroupCategoriesTableFactoryH2() else GroupCategoriesTableFactoryPostgres()
+    }
+
     single<ITableSeed>(qualifier = named("task_table_seed")) {
         val useEmbedded = get<Boolean>(named("embedded"))
         if (useEmbedded) TaskTableSeedH2() else TaskTableSeedPostgres()
@@ -153,6 +173,16 @@ val appModule = module {
     single<ITableSeed>(qualifier = named("fcm_tokens_table_seed")) {
         val useEmbedded = get<Boolean>(named("embedded"))
         if (useEmbedded) FcmTokensTableSeedH2() else FcmTokensTableSeedPostgres()
+    }
+
+    single<ITableSeed>(qualifier = named("categories_table_seed")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) CategoriesTableSeedH2() else CategoriesTableSeedPostgres()
+    }
+
+    single<ITableSeed>(qualifier = named("group_categories_table_seed")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) GroupCategoriesTableSeedH2() else GroupCategoriesTableSeedPostgres()
     }
 
     single<UserRepository> { UserRepository(
@@ -190,7 +220,16 @@ val appModule = module {
         get(named("fcm_tokens_table_factory")),
         get(named("fcm_tokens_table_seed"))) }
 
-    single<TaskService> { TaskService(get()) }
+    single<CategoryRepository> { CategoryRepository(
+        connection = get(named("connection")),
+        categoriesFactory = get(named("categories_table_factory")),
+        categoriesSeeder = get(named("categories_table_seed")),
+        groupCategoriesFactory = get(named("group_categories_table_factory")),
+        groupCategoriesSeeder = get(named("group_categories_table_seed")),
+    ) }
+
+    single<TaskService> { TaskService(taskRepository = get(), categoryRepository = get()) }
+    single<CategoryService> { CategoryService(categories = get()) }
 
     single<FirebaseConfig> { FirebaseConfig(get()) }
     single<NotificationService> { NotificationService(firebase = get(), fcmTokens = get()) }
@@ -211,6 +250,7 @@ val appModule = module {
             groups = get(),
             userGroups = get(),
             users = get(),
+            categories = get(),
         )
     }
 

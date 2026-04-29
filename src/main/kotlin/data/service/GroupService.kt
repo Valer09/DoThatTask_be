@@ -13,6 +13,7 @@ class GroupService(
     private val groups: GroupRepository,
     private val userGroups: UserGroupRepository,
     private val users: UserRepository,
+    private val categories: CategoryService,
 ) {
     /**
      * A small palette of font/badge colors used to visually distinguish groups
@@ -40,6 +41,10 @@ class GroupService(
         val id = groups.create(trimmed, ownerUsername, color)
         if (id == -1) return DataResponse.databaseError("Unable to retrieve the id of the newly created group")
         userGroups.addMember(ownerUsername, id, GroupRole.ADMIN)
+        // Every new group automatically inherits the default categories
+        // (Social/Career/Health). Custom categories can be added later via
+        // POST /api/categories.
+        categories.linkDefaultsToGroup(id)
         val info = loadInfo(id) ?: return DataResponse.databaseError("Group created but could not be loaded")
         return DataResponse.success(info, "Group created successfully")
     }

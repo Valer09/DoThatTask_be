@@ -3,6 +3,7 @@ package homeaq.dothattask
 import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.Model.auth.JwtConfig
 import homeaq.dothattask.Model.notifications.FirebaseConfig
+import homeaq.dothattask.data.repository.CategoryRepository
 import homeaq.dothattask.data.repository.FcmTokenRepository
 import homeaq.dothattask.data.repository.GroupRepository
 import homeaq.dothattask.data.repository.InviteRepository
@@ -92,9 +93,14 @@ fun main(args: Array<String>) {
         val refreshTokenRepository: RefreshTokenRepository by inject()
         val fcmTokenRepository: FcmTokenRepository by inject()
         val firebaseConfig: FirebaseConfig by inject()
+        // Categories table must be created BEFORE the tasks LEFT JOIN can resolve;
+        // tasks already had a category INTEGER column whose values now reference
+        // categories.id (1=Social, 2=Career, 3=Health pre-seeded).
+        val categoryRepository: CategoryRepository by inject()
         userRepository.hashCode()
         groupRepository.hashCode()
         userGroupRepository.hashCode()
+        categoryRepository.hashCode()
         taskRepository.hashCode()
         inviteRepository.hashCode()
         refreshTokenRepository.hashCode()

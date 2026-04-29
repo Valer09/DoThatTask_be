@@ -1,6 +1,7 @@
 package homeaq.dothattask
 
 import homeaq.dothattask.Controller.authRoutes
+import homeaq.dothattask.Controller.categoryRoutes
 import homeaq.dothattask.Controller.groupRoutes
 import homeaq.dothattask.Controller.inviteRoutes
 import homeaq.dothattask.Controller.notificationRoutes
@@ -34,5 +35,6 @@ fun Application.configureRouting() {
         groupRoutes()
         inviteRoutes()
         notificationRoutes()
+        categoryRoutes()
     }
 }

@@ -73,8 +73,9 @@ fun Application.taskRoutes()
                 get("/assignedTask") {
                     val principal = call.principal<UserPrincipal>()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                    val groupId = call.requireGroupId(userGroups) ?: return@get
 
-                    val task = taskService.assignedTask(principal.getUserName())
+                    val task = taskService.assignedTask(principal.getUserName(), groupId)
                     if (task.result == DataResult.NOT_FOUND) return@get call.respond(HttpStatusCode.NotFound)
                     call.respond(HttpStatusCode.OK, task.data!!)
                 }
@@ -114,14 +115,15 @@ fun Application.taskRoutes()
 
                         val principal = call.principal<UserPrincipal>()
                             ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                        val groupId = call.requireGroupId(userGroups) ?: return@post
 
-                        val response = taskService.pickTask(principal.getUserName(), category)
+                        val response = taskService.pickTask(principal.getUserName(), category, groupId)
                         if (response.result == DataResult.NOT_FOUND) return@post call.respond(
                             HttpStatusCode.NotFound,
                             message = "No tasks assigned to this user",
                         )
 
-                        val assigned = taskService.assignedTask(principal.getUserName())
+                        val assigned = taskService.assignedTask(principal.getUserName(), groupId)
                         if (assigned.result == DataResult.NOT_FOUND) return@post call.respond(HttpStatusCode.InternalServerError)
                         call.respond(HttpStatusCode.OK, assigned.data!!)
                     } catch (_: IllegalStateException) {

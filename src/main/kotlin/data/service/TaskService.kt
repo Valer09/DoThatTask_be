@@ -54,16 +54,16 @@ class TaskService(
     suspend fun tasksByUser(username: String, groupId: Int): DataResponse<List<Task>> =
         DataResponse.success(taskRepository.tasksByUser(username, groupId))
 
-    suspend fun assignedTask(username: String): DataResponse<Task> {
-        val active = taskRepository.activeTaskAcrossGroups(username)
+    suspend fun assignedTask(username: String, groupId: Int): DataResponse<Task> {
+        val active = taskRepository.activeTaskInGroup(username, groupId)
             ?: return DataResponse.notFound("No active tasks assigned to this user")
         return DataResponse.success(active)
     }
 
-    suspend fun pickTask(username: String, category: String): DataResponse<Boolean> {
+    suspend fun pickTask(username: String, category: String, groupId: Int): DataResponse<Boolean> {
         val resolved = categoryRepository.byNameInsensitive(category)
             ?: return DataResponse.validationError("Unknown category '$category'")
-        val candidates = taskRepository.todoTasksAcrossGroups(username, resolved.id)
+        val candidates = taskRepository.todoTasksInGroup(username, resolved.id, groupId)
         if (candidates.isEmpty()) return DataResponse.notFound("No tasks assigned to this user")
 
         val picked = candidates.random()

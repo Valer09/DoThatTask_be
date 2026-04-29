@@ -78,9 +78,9 @@ private fun seedDefaultCategoriesPg(connection: Connection) {
     }
     // After seeding fixed ids, bump the identity sequence past them so future
     // INSERTs without explicit id don't collide.
-    connection.createStatement().executeUpdate(
-        "SELECT setval(pg_get_serial_sequence('categories', 'id'), GREATEST(MAX(id), 0)) FROM categories"
-    )
+    connection.createStatement().executeQuery(
+        "SELECT setval(pg_get_serial_sequence('categories', 'id'), GREATEST(MAX(id), 1)) FROM categories"
+    ).close()
 }
 
 class CategoriesTableFactoryH2 : ITableFactory {

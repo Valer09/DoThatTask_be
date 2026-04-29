@@ -69,6 +69,10 @@ class NotificationService(
             "Daily Reminder" to "Ehy don't forget about your weekly task! 👀"
         else
             "Daily Reminder" to "Hey! Don't you want to pick a new task for the week? 👻💪💪"
-        return sendToUser(username, title, body, mapOf("type" to "daily_reminder"))
+        return sendToUser(username, title, body,     data = mapOf(
+            "type" to "task_assigned",
+            "screen" to "task_detail",
+            "targetId" to ""
+        ))
     }
 }

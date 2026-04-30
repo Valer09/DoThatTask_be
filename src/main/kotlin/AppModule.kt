@@ -55,7 +55,10 @@ import homeaq.dothattask.data.service.InviteService
 import homeaq.dothattask.data.service.NotificationService
 import homeaq.dothattask.data.service.TaskService
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.log
+import io.ktor.server.engine.applicationEnvironment
+import org.h2.tools.Server
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.sql.Connection
@@ -80,11 +83,12 @@ val appModule = module {
     single<Connection>(qualifier = named("connection")) {
         val app = get<Application>()
         val useEmbedded = get<Boolean>( named("embedded"))
-
+        val h2Server = Server.createWebServer("-web", "-webAllowOthers", "-webPort", "8082")
         if (useEmbedded) {
+            h2Server.start()
+            app.monitor.subscribe(ApplicationStopped){h2Server.stop()}
             app.log.info("Using embedded H2 database")
             DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "root", "")
-
         }
         else {
             val url = app.environment.config.property("ktor.postgres.url").getString()
@@ -188,7 +192,9 @@ val appModule = module {
     single<UserRepository> { UserRepository(
         get(named("connection")),
         get(named("user_table_factory")),
-        get(named("user_table_seed"))) }
+        get(named("user_table_seed")),
+        isEmbedded = get(named("embedded"))
+    ) }
 
     single<GroupRepository> { GroupRepository(
         get(named("connection")),
@@ -232,7 +238,7 @@ val appModule = module {
     single<CategoryService> { CategoryService(categories = get()) }
 
     single<FirebaseConfig> { FirebaseConfig(get()) }
-    single<NotificationService> { NotificationService(firebase = get(), fcmTokens = get()) }
+    single<NotificationService> { NotificationService(firebase = get(), fcmTokens = get(), users = get(), tasks = get()) }
 
     single<JwtConfig> { JwtConfig(get<Application>().environment.config) }
 
@@ -260,6 +266,7 @@ val appModule = module {
             groups = get(),
             userGroups = get(),
             users = get(),
+            notification = get()
         )
     }
 

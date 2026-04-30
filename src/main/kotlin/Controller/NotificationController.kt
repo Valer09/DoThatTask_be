@@ -2,6 +2,7 @@ package homeaq.dothattask.Controller
 
 import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.data.repository.FcmTokenRepository
+import homeaq.dothattask.data.repository.UserRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.JsonConvertException
 import io.ktor.server.application.Application
@@ -21,6 +22,7 @@ data class FcmTokenRequest(val token: String, val platform: String = "android")
 
 fun Application.notificationRoutes() {
     val fcmTokens by inject<FcmTokenRepository>()
+    val users by inject<UserRepository>()
 
     routing {
         authenticate("auth-jwt") {
@@ -56,6 +58,24 @@ fun Application.notificationRoutes() {
                     } catch (_: IllegalStateException) {
                         call.respond(HttpStatusCode.BadRequest)
                     }
+                }
+
+                post("/reminder/ack") {
+                    val username = call.principal<UserPrincipal>()!!.username
+                    if(users.resetUnopenedReminders(username))
+                        call.respond(HttpStatusCode.OK)
+                    else call.respond(HttpStatusCode.InternalServerError)
+                }
+
+
+                post("/reactivate") {
+                    val username = call.principal<UserPrincipal>()?.username
+                        ?: return@post call.respond(HttpStatusCode.Unauthorized)
+
+                    if (users.reactivateUserNotification(username))
+                        call.respond(HttpStatusCode.OK)
+                    else
+                        call.respond(HttpStatusCode.InternalServerError)
                 }
             }
         }

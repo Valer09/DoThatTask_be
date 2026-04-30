@@ -3,18 +3,24 @@ package homeaq.dothattask.data.service
 import homeaq.dothattask.Model.GroupRole
 import homeaq.dothattask.Model.Invite
 import homeaq.dothattask.Model.InviteStatus
+import homeaq.dothattask.Model.NotificationData
+import homeaq.dothattask.Model.NotificationType
 import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.repository.GroupRepository
 import homeaq.dothattask.data.repository.InviteRepository
 import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.repository.UserRepository
+import org.koin.ktor.ext.inject
+import kotlin.getValue
 
 class InviteService(
     private val invites: InviteRepository,
     private val groups: GroupRepository,
     private val userGroups: UserGroupRepository,
     private val users: UserRepository,
+    private val notification: NotificationService
 ) {
+
     /**
      * Sends an invite for [groupId]. The caller must be the owner of that
      * group (multi-group: owners can invite to any group they own; the
@@ -46,6 +52,14 @@ class InviteService(
         val id = invites.create(groupId, inviterUsername, invitee.username)
         if (id == -1) return DataResponse.databaseError("Unable to create invite")
         val created = invites.byId(id) ?: return DataResponse.databaseError("Invite created but not retrievable")
+        val invitationBody = "You received a invitation to join the group ${created.groupName} from ${created.inviterUsername}"
+
+        notification.sendToUser(
+            created.inviteeUsername,
+            "Group Invitation",
+            invitationBody,
+            NotificationData.getNotificationData(NotificationType.GroupInvitation))
+
         return DataResponse.success(created, "Invite sent")
     }
 

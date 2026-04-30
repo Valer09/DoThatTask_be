@@ -42,3 +42,4 @@ out/
 *.env
 deploy.txt
 /firebase-service-account.json
+/h2-2.4.240.jar

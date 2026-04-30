@@ -2,8 +2,13 @@ package homeaq.dothattask.data.service
 
 import com.google.firebase.messaging.MulticastMessage
 import com.google.firebase.messaging.Notification
+import homeaq.dothattask.Model.NotificationData
+import homeaq.dothattask.Model.NotificationType
+import homeaq.dothattask.Model.TaskStatus
 import homeaq.dothattask.Model.notifications.FirebaseConfig
 import homeaq.dothattask.data.repository.FcmTokenRepository
+import homeaq.dothattask.data.repository.TaskRepository
+import homeaq.dothattask.data.repository.UserRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -18,6 +23,8 @@ import org.slf4j.LoggerFactory
 class NotificationService(
     private val firebase: FirebaseConfig,
     private val fcmTokens: FcmTokenRepository,
+    private val users: UserRepository,
+    private val tasks: TaskRepository
 ) {
     private val log: Logger = LoggerFactory.getLogger(NotificationService::class.java)
 
@@ -64,15 +71,21 @@ class NotificationService(
      * locally. Hook this up to a scheduler (Quartz, Ktor scheduling plugin, or
      * a Postgres-driven cron) when the server takes ownership of timing.
      */
-    suspend fun sendDailyReminder(username: String, hasAssignedTask: Boolean): Int {
-        val (title, body) = if (hasAssignedTask)
-            "Daily Reminder" to "Ehy don't forget about your weekly task! 👀"
-        else
-            "Daily Reminder" to "Hey! Don't you want to pick a new task for the week? 👻💪💪"
-        return sendToUser(username, title, body,     data = mapOf(
-            "type" to "task_assigned",
-            "screen" to "task_detail",
-            "targetId" to ""
-        ))
+    private suspend fun sendDailyReminderToUser(username: String): Int {
+
+        val hasAssignedTasks = tasks.assignedTasksAcrossGroups(username, null).any{ it -> it.status == TaskStatus.ACTIVE }
+        val (title, body) =
+            if (hasAssignedTasks) "Weekly task reminder" to "Ehy don't forget about your weekly task! 👀"
+            else "Weekly task reminder" to "Hey! Don't you want to pick a new task for the week? 👻💪💪"
+
+        return sendToUser(username, title, body,     data = NotificationData.getNotificationData(NotificationType.DailyReminder))
+    }
+
+    suspend fun sendDailyReminder() {
+        val eligibleUsers = users.getUsersEligibleForReminder()
+        eligibleUsers.forEach{ user ->
+            sendDailyReminderToUser(user.username)
+            users.incrementUnopenedReminders(user.username)
+        }
     }
 }

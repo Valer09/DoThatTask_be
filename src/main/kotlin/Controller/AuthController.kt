@@ -6,6 +6,8 @@ import homeaq.dothattask.Model.auth.LoginRequest
 import homeaq.dothattask.Model.auth.LogoutRequest
 import homeaq.dothattask.Model.auth.RefreshRequest
 import homeaq.dothattask.Model.auth.RegisterRequest
+import homeaq.dothattask.data.repository.FcmTokenRepository
+import homeaq.dothattask.data.repository.UserRepository
 import homeaq.dothattask.data.service.AuthService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.JsonConvertException
@@ -21,6 +23,7 @@ import org.koin.ktor.ext.inject
 
 fun Application.authRoutes() {
     val authService by inject<AuthService>()
+    val user by inject<UserRepository>()
 
     routing {
         route("/api/auth") {
@@ -29,6 +32,9 @@ fun Application.authRoutes() {
                     val body = call.receive<LoginRequest>()
                     val tokens = authService.login(body.username, body.password)
                         ?: return@post call.respond(HttpStatusCode.Unauthorized)
+
+                    runCatching { user.reactivateUserNotification(body.username) }
+
                     call.respond(HttpStatusCode.OK, tokens)
                 } catch (_: JsonConvertException) {
                     call.respond(HttpStatusCode.BadRequest)

@@ -20,6 +20,7 @@ import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.maxAgeDuration
 import io.ktor.server.plugins.cors.routing.CORS
+import org.koin.ktor.ext.get
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
@@ -123,5 +124,6 @@ fun main(args: Array<String>) {
 
 
         configureSerialization()
-    configureRouting()
+        configureRouting()
+        startDailyReminderJob(get())
 }

@@ -8,11 +8,26 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.sql.Connection
 
-class UserRepository(private val connection: Connection, factory: ITableFactory, seeder: ITableSeed)
+class UserRepository(private val connection: Connection, factory: ITableFactory, seeder: ITableSeed, isEmbedded: Boolean)
 {
+    private val _isEmb = isEmbedded
     private val SELECT_ALL = "SELECT name, username FROM users"
     private val SELECT_USER_BY_USERNAME = "SELECT * FROM users WHERE username = ?"
     private val GET_PASSWORD_HASH_BY_USERNAME = "SELECT password_hash FROM users WHERE username = ?"
+    private val FIND_USERS_FOR_REMINDER =
+        """SELECT * FROM users 
+           WHERE reminder_enabled = TRUE 
+           AND(
+               reminder_last_sent IS NULL 
+               OR (reminder_consecutive_unopened < ? AND reminder_last_sent < NOW() - (? * INTERVAL '1' HOUR))
+           )""".trimIndent()
+
+    private val FIND_USERS_FOR_REMINDER_H2 =
+        """SELECT * FROM users 
+            WHERE reminder_enabled = TRUE 
+            AND(
+            reminder_last_sent IS NULL 
+            OR (reminder_consecutive_unopened < ? AND reminder_last_sent < DATEADD('HOUR', -?, NOW())))""".trimIndent()
 
     init {
         factory.createTable(connection)
@@ -34,7 +49,7 @@ class UserRepository(private val connection: Connection, factory: ITableFactory,
         result
     }
 
-    suspend fun all(): List<User> = withContext(Dispatchers.IO)
+/*    suspend fun all(): List<User> = withContext(Dispatchers.IO)
     {
         val statement = connection.prepareStatement(SELECT_ALL)
 
@@ -56,7 +71,7 @@ class UserRepository(private val connection: Connection, factory: ITableFactory,
         }
 
         return@withContext result
-    }
+    }*/
 
     suspend fun userByUsername(username: String): User? = withContext(Dispatchers.IO)
     {
@@ -110,5 +125,74 @@ class UserRepository(private val connection: Connection, factory: ITableFactory,
 
         if (resultSet.next())
             return@withContext resultSet.getString("password_hash") else throw Exception("User does not have a password stored")
+    }
+
+    suspend fun getUsersEligibleForReminder() : List<User> = withContext(Dispatchers.IO){
+
+        val stmt = when(_isEmb) {
+            true -> connection.prepareStatement(FIND_USERS_FOR_REMINDER_H2)
+            false -> connection.prepareStatement(FIND_USERS_FOR_REMINDER)
+        }
+
+        stmt.setInt(1, 7)
+        stmt.setInt(2, 20)
+
+        val resultSet = stmt.executeQuery()
+        val usersToRemind = mutableListOf<User>()
+
+        while (resultSet.next()) {
+            usersToRemind.add(User(resultSet.getString("name"), resultSet.getString("username"), "better_not"))
+        }
+
+        usersToRemind
+    }
+
+    suspend fun resetUnopenedReminders(username: String) : Boolean = withContext(Dispatchers.IO){
+
+        connection.prepareStatement(
+                """
+        UPDATE users 
+        SET reminder_consecutive_unopened = 0,
+            reminder_last_opened = NOW(),
+            reminder_enabled = TRUE
+        WHERE username = ?
+        """
+            ).use { stmt ->
+                stmt.setString(1, username)
+                stmt.executeUpdate() > 0
+            }
+    }
+
+    suspend fun incrementUnopenedReminders(username: String) : Boolean = withContext(Dispatchers.IO){
+        connection.prepareStatement(
+            """
+        UPDATE users
+        SET reminder_consecutive_unopened = reminder_consecutive_unopened + 1,
+            reminder_last_sent = NOW(),
+            reminder_enabled = CASE 
+                WHEN reminder_consecutive_unopened + 1 >= 7 THEN FALSE 
+                ELSE TRUE 
+            END
+        WHERE username = ?
+        """
+        ).use { stmt ->
+            stmt.setString(1, username)
+            stmt.executeUpdate() > 0
+        }
+    }
+
+    suspend fun reactivateUserNotification(username: String): Boolean = withContext(Dispatchers.IO) {
+        connection.prepareStatement(
+            """
+        UPDATE users
+        SET reminder_consecutive_unopened = 0,
+            reminder_last_opened = NOW(),
+            reminder_enabled = TRUE
+        WHERE username = ?
+        """.trimIndent()
+        ).use { stmt ->
+            stmt.setString(1, username)
+            stmt.executeUpdate() > 0
+        }
     }
 }

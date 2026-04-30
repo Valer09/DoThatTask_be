@@ -147,15 +147,19 @@ class TaskRepository(private val connection: Connection, private val factory: IT
     }
 
     /** Returns every TODO task assigned to the user across all groups, optionally filtered by category id. */
-    suspend fun todoTasksAcrossGroups(username: String, categoryId: Int?): List<Task> = withContext(Dispatchers.IO) {
-        val sql = StringBuilder("$SELECT_BASE WHERE t.user_username = ? AND t.status = ?")
-        if (categoryId != null) sql.append(" AND t.category = ?")
-        val stmt = connection.prepareStatement(sql.toString())
-        stmt.setString(1, username.lowercase())
-        stmt.setInt(2, TaskStatus.TODO.code)
-        if (categoryId != null) stmt.setInt(3, categoryId)
-        val rs = stmt.executeQuery()
-        buildList { while (rs.next()) add(rs.toTask()) }
+    suspend fun assignedTasksAcrossGroups(username: String, categoryId: Int?): List<Task> = withContext(Dispatchers.IO) {
+        val sql = buildString {
+            append("$SELECT_BASE WHERE t.user_username = ? AND t.status != ?")
+            if (categoryId != null) append(" AND t.category = ?")
+        }
+        connection.prepareStatement(sql).use { stmt ->
+            stmt.setString(1, username.lowercase())
+            stmt.setInt(2, TaskStatus.COMPLETED.code)
+            if (categoryId != null) stmt.setInt(3, categoryId)
+            stmt.executeQuery().use { rs ->
+                buildList { while (rs.next()) add(rs.toTask()) }
+            }
+        }
     }
 
     /** TODO tasks assigned to the user inside a specific group, optionally filtered by category id. */

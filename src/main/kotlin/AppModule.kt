@@ -106,11 +106,14 @@ val appModule = module {
                 username = user
                 this.password = password
                 driverClassName = "org.postgresql.Driver"
-                maximumPoolSize = 10
-                minimumIdle = 2
-                connectionTimeout = 5_000
-                idleTimeout = 600_000
-                maxLifetime = 1_800_000
+                maximumPoolSize = 5
+                minimumIdle = 0
+                connectionTimeout = 30_000
+                idleTimeout = 180_000
+                maxLifetime = 280_000
+                keepaliveTime = 0
+                validationTimeout = 5_000
+                initializationFailTimeout = -1
             })
         }
     }

@@ -1,5 +1,7 @@
 package homeaq.dothattask
 
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import homeaq.dothattask.data.DBSchema.GroupsTableFactoryH2
 import homeaq.dothattask.data.DBSchema.GroupsTableFactoryPostgres
 import homeaq.dothattask.data.DBSchema.GroupsTableSeedH2
@@ -57,15 +59,12 @@ import homeaq.dothattask.data.service.TaskService
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.log
-import io.ktor.server.engine.applicationEnvironment
 import org.h2.tools.Server
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import java.sql.Connection
-import java.sql.DriverManager
+import javax.sql.DataSource
 
 val appModule = module {
-
 
     single<Application> {
         getKoin().getProperty("application") ?: throw IllegalStateException("Application property is missing")
@@ -79,23 +78,39 @@ val appModule = module {
             ?: false
     }
 
-    //Bean
-    single<Connection>(qualifier = named("connection")) {
+    // HikariCP DataSource — replaces single raw Connection
+    single<DataSource>(qualifier = named("dataSource")) {
         val app = get<Application>()
-        val useEmbedded = get<Boolean>( named("embedded"))
-        val h2Server = Server.createWebServer("-web", "-webAllowOthers", "-webPort", "8082")
+        val useEmbedded = get<Boolean>(named("embedded"))
+
         if (useEmbedded) {
+            val h2Server = Server.createWebServer("-web", "-webAllowOthers", "-webPort", "8082")
             h2Server.start()
-            app.monitor.subscribe(ApplicationStopped){h2Server.stop()}
-            app.log.info("Using embedded H2 database")
-            DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "root", "")
-        }
-        else {
+            app.monitor.subscribe(ApplicationStopped) { h2Server.stop() }
+            app.log.info("Using embedded H2 database (HikariCP pool)")
+            HikariDataSource(HikariConfig().apply {
+                jdbcUrl = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1"
+                username = "root"
+                password = ""
+                driverClassName = "org.h2.Driver"
+                maximumPoolSize = 10
+            })
+        } else {
             val url = app.environment.config.property("ktor.postgres.url").getString()
             val user = app.environment.config.property("ktor.postgres.user").getString()
             val password = app.environment.config.property("ktor.postgres.password").getString()
-            app.log.info("Connecting to postgres database at $url")
-            DriverManager.getConnection(url, user, password)
+            app.log.info("Connecting to postgres at $url (HikariCP pool)")
+            HikariDataSource(HikariConfig().apply {
+                jdbcUrl = url
+                username = user
+                this.password = password
+                driverClassName = "org.postgresql.Driver"
+                maximumPoolSize = 10
+                minimumIdle = 2
+                connectionTimeout = 30_000
+                idleTimeout = 600_000
+                maxLifetime = 1_800_000
+            })
         }
     }
 
@@ -190,44 +205,44 @@ val appModule = module {
     }
 
     single<UserRepository> { UserRepository(
-        get(named("connection")),
+        get(named("dataSource")),
         get(named("user_table_factory")),
         get(named("user_table_seed")),
         isEmbedded = get(named("embedded"))
     ) }
 
     single<GroupRepository> { GroupRepository(
-        get(named("connection")),
+        get(named("dataSource")),
         get(named("groups_table_factory")),
         get(named("groups_table_seed"))) }
 
     single<UserGroupRepository> { UserGroupRepository(
-        get(named("connection")),
+        get(named("dataSource")),
         get(named("user_groups_table_factory")),
         get(named("user_groups_table_seed"))) }
 
     single<TaskRepository> { TaskRepository(
-            get(named("connection")),
+        get(named("dataSource")),
         get(named("task_table_factory")),
         get(named("task_table_seed"))) }
 
     single<InviteRepository> { InviteRepository(
-        get(named("connection")),
+        get(named("dataSource")),
         get(named("invites_table_factory")),
         get(named("invites_table_seed"))) }
 
     single<RefreshTokenRepository> { RefreshTokenRepository(
-        get(named("connection")),
+        get(named("dataSource")),
         get(named("refresh_tokens_table_factory")),
         get(named("refresh_tokens_table_seed"))) }
 
     single<FcmTokenRepository> { FcmTokenRepository(
-        get(named("connection")),
+        get(named("dataSource")),
         get(named("fcm_tokens_table_factory")),
         get(named("fcm_tokens_table_seed"))) }
 
     single<CategoryRepository> { CategoryRepository(
-        connection = get(named("connection")),
+        dataSource = get(named("dataSource")),
         categoriesFactory = get(named("categories_table_factory")),
         categoriesSeeder = get(named("categories_table_seed")),
         groupCategoriesFactory = get(named("group_categories_table_factory")),

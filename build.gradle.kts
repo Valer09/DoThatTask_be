@@ -38,7 +38,7 @@ dependencies {
     implementation("io.insert-koin:koin-ktor:3.5.0")
     implementation("io.insert-koin:koin-logger-slf4j:3.5.0")
 
-    implementation("at.favre.lib:bcrypt:0.10.0")
+    implementation("at.favre.lib:bcrypt:0.10.2")
 
     implementation("io.ktor:ktor-server-auth")
     implementation("io.ktor:ktor-server-auth-jwt")
@@ -46,8 +46,7 @@ dependencies {
     // HikariCP — connection pool
     implementation("com.zaxxer:HikariCP:5.1.0")
 
-    // Firebase Admin SDK — push notifications via FCM. Initialization is
-    // tolerant: if no service-account JSON is provided, calls are no-ops.
+    // Firebase Admin SDK
     implementation("com.google.firebase:firebase-admin:9.4.3")
 }
 

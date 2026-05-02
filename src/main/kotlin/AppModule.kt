@@ -106,7 +106,7 @@ val appModule = module {
                 driverClassName = "org.postgresql.Driver"
                 maximumPoolSize = 10
                 minimumIdle = 2
-                connectionTimeout = 30_000
+                connectionTimeout = 5_000
                 idleTimeout = 600_000
                 maxLifetime = 1_800_000
             })

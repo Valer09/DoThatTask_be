@@ -25,23 +25,36 @@ class FcmTokenRepository(
         }
     }
 
-    suspend fun register(username: String, token: String, platform: String = "android"): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { connection ->
-            // Re-binding strategy: delete-then-insert. Portable across H2 and Postgres
-            // and idempotent — registering the same device twice is a no-op functionally.
-            val del = connection.prepareStatement("DELETE FROM fcm_tokens WHERE token = ?")
-            del.setString(1, token)
-            del.executeUpdate()
+    suspend fun register(username: String, token: String, platform: String = "android"): Unit =
+        withContext(Dispatchers.IO) {
+            dataSource.connection.use { connection ->
+                try {
+                    connection.autoCommit = false
+                    connection.transactionIsolation = Connection.TRANSACTION_SERIALIZABLE
 
-            val ins = connection.prepareStatement(
-                "INSERT INTO fcm_tokens (user_username, token, platform) VALUES (?, ?, ?)"
-            )
-            ins.setString(1, username.lowercase())
-            ins.setString(2, token)
-            ins.setString(3, platform)
-            ins.executeUpdate()
+                    connection.prepareStatement("DELETE FROM fcm_tokens WHERE token = ?").use { del ->
+                        del.setString(1, token)
+                        del.executeUpdate()
+                    }
+
+                    connection.prepareStatement(
+                        "INSERT INTO fcm_tokens (user_username, token, platform) VALUES (?, ?, ?)"
+                    ).use { ins ->
+                        ins.setString(1, username.lowercase())
+                        ins.setString(2, token)
+                        ins.setString(3, platform)
+                        ins.executeUpdate()  // ← mancava questo
+                    }
+
+                    connection.commit()
+                } catch (e: Exception) {
+                    connection.rollback()
+                    throw e
+                } finally {
+                    connection.autoCommit = true
+                }
+            }
         }
-    }
 
     suspend fun unregister(token: String): Boolean = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->

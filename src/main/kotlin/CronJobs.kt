@@ -18,7 +18,7 @@ fun Application.startDailyReminderJob(notificationService: NotificationService) 
     launch {
         val app = get<Application>()
         val notificationTime = app.environment.config.property("ktor.fcm.notificationTime").getString()
-        val hour = if(notificationTime == "aft") 16 else 9
+        val hour = if(notificationTime == "aft") 17 else 9
         while (true) {
             val now = LocalDateTime.now()
             val todayAt9 = LocalDate.now().atTime(hour, 0)

@@ -5,6 +5,7 @@ import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Statement
 import javax.sql.DataSource
@@ -15,9 +16,9 @@ class GroupRepository(
     seeder: ITableSeed,
 ) {
     init {
-        dataSource.connection.use { conn ->
-            factory.createTable(conn)
-            seeder.seed(conn)
+        dataSource.connection.use { connection ->
+            factory.createTable(connection)
+            seeder.seed(connection)
         }
     }
 
@@ -29,8 +30,8 @@ class GroupRepository(
     )
 
     suspend fun create(name: String, ownerUsername: String, color: String): Int = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "INSERT INTO groups (name, owner_username, color) VALUES (?, ?, ?)",
                 Statement.RETURN_GENERATED_KEYS,
             )
@@ -44,8 +45,8 @@ class GroupRepository(
     }
 
     suspend fun byId(id: Int): Group? = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement("SELECT id, name, owner_username, color FROM groups WHERE id = ?")
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement("SELECT id, name, owner_username, color FROM groups WHERE id = ?")
             stmt.setInt(1, id)
             val rs = stmt.executeQuery()
             if (rs.next()) rs.toGroup() else null
@@ -53,8 +54,8 @@ class GroupRepository(
     }
 
     suspend fun byName(name: String): Group? = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement("SELECT id, name, owner_username, color FROM groups WHERE name = ?")
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement("SELECT id, name, owner_username, color FROM groups WHERE name = ?")
             stmt.setString(1, name)
             val rs = stmt.executeQuery()
             if (rs.next()) rs.toGroup() else null
@@ -62,10 +63,11 @@ class GroupRepository(
     }
 
     suspend fun delete(id: Int): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement("DELETE FROM groups WHERE id = ?")
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement("DELETE FROM groups WHERE id = ?")
             stmt.setInt(1, id)
             stmt.executeUpdate()
         }
     }
+
 }

@@ -6,6 +6,7 @@ import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import io.ktor.server.plugins.NotFoundException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.sql.Connection
 import javax.sql.DataSource
 
 class UserRepository(private val dataSource: DataSource, factory: ITableFactory, seeder: ITableSeed, isEmbedded: Boolean)
@@ -25,110 +26,191 @@ class UserRepository(private val dataSource: DataSource, factory: ITableFactory,
     private val FIND_USERS_FOR_REMINDER_H2 =
         """SELECT * FROM users 
             WHERE reminder_enabled = TRUE 
-            AND (
-                reminder_last_sent IS NULL
-                OR (reminder_consecutive_unopened < ? AND reminder_last_sent < DATEADD('HOUR', -?, NOW()))
-            )""".trimIndent()
-
-    private val INSERT_USER =
-        "INSERT INTO users (name, username, password_hash) VALUES (?, ?, ?)"
-    private val DELETE_USER = "DELETE FROM users WHERE username = ?"
-    private val UPDATE_REMINDER =
-        "UPDATE users SET reminder_enabled = ?, reminder_interval_hours = ? WHERE username = ?"
-    private val MARK_REMINDER_SENT =
-        "UPDATE users SET reminder_last_sent = NOW(), reminder_consecutive_unopened = reminder_consecutive_unopened + 1 WHERE username = ?"
-    private val RESET_REMINDER_STREAK =
-        "UPDATE users SET reminder_consecutive_unopened = 0 WHERE username = ?"
+            AND(
+            reminder_last_sent IS NULL 
+            OR (reminder_consecutive_unopened < ? AND reminder_last_sent < DATEADD('HOUR', -?, NOW())))""".trimIndent()
 
     init {
-        dataSource.connection.use { conn ->
-            factory.createTable(conn)
-            seeder.seed(conn)
+        dataSource.connection.use { connection ->
+            factory.createTable(connection)
+            seeder.seed(connection)
         }
     }
 
-    suspend fun allUsers(): List<User> = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val rs = conn.prepareStatement(SELECT_ALL).executeQuery()
-            buildList { while (rs.next()) add(User(rs.getString("name"), rs.getString("username"), "")) }
-        }
-    }
-
-    suspend fun userByUsername(username: String): User? = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(SELECT_USER_BY_USERNAME)
-            stmt.setString(1, username.lowercase())
+    suspend fun allInGroup(groupId: Int): List<User> = withContext(Dispatchers.IO) {
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
+                "SELECT u.name, u.username FROM users u " +
+                        "JOIN user_groups ug ON ug.user_username = u.username " +
+                        "WHERE ug.group_id = ?"
+            )
+            stmt.setInt(1, groupId)
             val rs = stmt.executeQuery()
-            if (rs.next()) User(rs.getString("name"), rs.getString("username"), rs.getString("password_hash"))
-            else null
+            val result = mutableListOf<User>()
+            while (rs.next()) {
+                result.add(User(rs.getString("name"), rs.getString("username"), "better_not"))
+            }
+            result
         }
     }
 
-    suspend fun getPasswordHashByUsername(username: String): String? = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(GET_PASSWORD_HASH_BY_USERNAME)
-            stmt.setString(1, username.lowercase())
-            val rs = stmt.executeQuery()
-            if (rs.next()) rs.getString("password_hash") else null
-        }
-    }
+/*    suspend fun all(): List<User> = withContext(Dispatchers.IO)
+    {
+        val statement = connection.prepareStatement(SELECT_ALL)
 
-    suspend fun createUser(user: User): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(INSERT_USER)
-            stmt.setString(1, user.name)
-            stmt.setString(2, user.username.lowercase())
-            stmt.setString(3, user.password_hash)
-            stmt.executeUpdate()
-        }
-    }
+        val resultSet = statement.executeQuery()
 
-    suspend fun deleteUser(username: String): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(DELETE_USER)
-            stmt.setString(1, username.lowercase())
-            stmt.executeUpdate()
-        }
-    }
+        val result = mutableListOf<User>()
+        while (resultSet.next()) {
+            result.add(
+                User(
+                    resultSet.getString("name"),
+                    resultSet.getString("username"),
 
-    suspend fun updateReminder(username: String, enabled: Boolean, intervalHours: Int): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(UPDATE_REMINDER)
-            stmt.setBoolean(1, enabled)
-            stmt.setInt(2, intervalHours)
-            stmt.setString(3, username.lowercase())
-            stmt.executeUpdate()
-        }
-    }
+                    //WARNING: DO YOU REALLY NEED?
+                    //resultSet.getString("password_hash"),
 
-    suspend fun usersForReminder(maxConsecutive: Int, intervalHours: Int): List<User> = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val sql = if (_isEmb) FIND_USERS_FOR_REMINDER_H2 else FIND_USERS_FOR_REMINDER
-            val stmt = conn.prepareStatement(sql)
-            stmt.setInt(1, maxConsecutive)
-            stmt.setInt(2, intervalHours)
-            val rs = stmt.executeQuery()
-            buildList {
-                while (rs.next()) add(
-                    User(rs.getString("name"), rs.getString("username"), rs.getString("password_hash"))
+                    "better_not"
                 )
+            )
+        }
+
+        return@withContext result
+    }*/
+
+    suspend fun userByUsername(username: String): User? = withContext(Dispatchers.IO)
+    {
+        dataSource.connection.use { connection ->
+            val statement = connection.prepareStatement(SELECT_USER_BY_USERNAME)
+            statement.setString(1, username.lowercase())
+            val resultSet = statement.executeQuery()
+
+            if (resultSet.next()) {
+                return@withContext User(
+                    resultSet.getString("name"),
+                    resultSet.getString("username"),
+                    resultSet.getString("password_hash"),
+                )
+            }
+            null
+        }
+    }
+
+    suspend fun create(name: String, username: String, passwordHash: String): Boolean = withContext(Dispatchers.IO) {
+        dataSource.connection.use { connection ->
+            val exists = connection.prepareStatement(SELECT_USER_BY_USERNAME).apply {
+                setString(1, username.lowercase())
+            }.executeQuery()
+            if (exists.next()) return@withContext false
+
+            val insert = connection.prepareStatement(
+                "INSERT INTO users (name, username, password_hash) VALUES (?, ?, ?)"
+            )
+            insert.setString(1, name)
+            insert.setString(2, username.lowercase())
+            insert.setString(3, passwordHash)
+            insert.executeUpdate() == 1
+        }
+    }
+
+    suspend fun updatePasswordHash(username: String, newHash: String): Unit = withContext(Dispatchers.IO) {
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement("UPDATE users SET password_hash = ? WHERE username = ?")
+            stmt.setString(1, newHash)
+            stmt.setString(2, username.lowercase())
+            stmt.executeUpdate()
+        }
+    }
+
+    suspend fun passwordHashByUsername(username: String): String = withContext(Dispatchers.IO)
+    {
+        dataSource.connection.use { connection ->
+            var statement = connection.prepareStatement(SELECT_USER_BY_USERNAME)
+            statement.setString(1, username.lowercase())
+            var resultSet = statement.executeQuery()
+            if (!resultSet.next()) throw NotFoundException("User does not exists")
+
+            statement = connection.prepareStatement(GET_PASSWORD_HASH_BY_USERNAME)
+            statement.setString(1, username.lowercase())
+            resultSet = statement.executeQuery()
+
+            if (resultSet.next())
+                return@withContext resultSet.getString("password_hash") else throw Exception("User does not have a password stored")
+        }
+    }
+
+    suspend fun getUsersEligibleForReminder() : List<User> = withContext(Dispatchers.IO){
+        dataSource.connection.use { connection ->
+            val stmt = when(_isEmb) {
+                true -> connection.prepareStatement(FIND_USERS_FOR_REMINDER_H2)
+                false -> connection.prepareStatement(FIND_USERS_FOR_REMINDER)
+            }
+
+            stmt.setInt(1, 7)
+            stmt.setInt(2, 20)
+
+            val resultSet = stmt.executeQuery()
+            val usersToRemind = mutableListOf<User>()
+
+            while (resultSet.next()) {
+                usersToRemind.add(User(resultSet.getString("name"), resultSet.getString("username"), "better_not"))
+            }
+
+            usersToRemind
+        }
+    }
+
+    suspend fun resetUnopenedReminders(username: String) : Boolean = withContext(Dispatchers.IO){
+        dataSource.connection.use { connection ->
+            connection.prepareStatement(
+                """
+                        UPDATE users 
+                        SET reminder_consecutive_unopened = 0,
+                            reminder_last_opened = NOW(),
+                            reminder_enabled = TRUE
+                        WHERE username = ?
+                        """
+            ).use { stmt ->
+                stmt.setString(1, username)
+                stmt.executeUpdate() > 0
             }
         }
     }
 
-    suspend fun markReminderSent(username: String): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(MARK_REMINDER_SENT)
-            stmt.setString(1, username.lowercase())
-            stmt.executeUpdate()
+    suspend fun incrementUnopenedReminders(username: String) : Boolean = withContext(Dispatchers.IO){
+        dataSource.connection.use { connection ->
+            connection.prepareStatement(
+                """
+                        UPDATE users
+                        SET reminder_consecutive_unopened = reminder_consecutive_unopened + 1,
+                            reminder_last_sent = NOW(),
+                            reminder_enabled = CASE 
+                                WHEN reminder_consecutive_unopened + 1 >= 7 THEN FALSE 
+                                ELSE TRUE 
+                            END
+                        WHERE username = ?
+                        """
+            ).use { stmt ->
+                stmt.setString(1, username)
+                stmt.executeUpdate() > 0
+            }
         }
     }
 
-    suspend fun resetReminderStreak(username: String): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(RESET_REMINDER_STREAK)
-            stmt.setString(1, username.lowercase())
-            stmt.executeUpdate()
+    suspend fun reactivateUserNotification(username: String): Boolean = withContext(Dispatchers.IO) {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement(
+                """
+                        UPDATE users
+                        SET reminder_consecutive_unopened = 0,
+                            reminder_last_opened = NOW(),
+                            reminder_enabled = TRUE
+                        WHERE username = ?
+                        """.trimIndent()
+            ).use { stmt ->
+                stmt.setString(1, username)
+                stmt.executeUpdate() > 0
+            }
         }
     }
 }

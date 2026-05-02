@@ -7,6 +7,7 @@ import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.sql.Connection
 import javax.sql.DataSource
 
 class UserGroupRepository(
@@ -15,15 +16,15 @@ class UserGroupRepository(
     seeder: ITableSeed,
 ) {
     init {
-        dataSource.connection.use { conn ->
-            factory.createTable(conn)
-            seeder.seed(conn)
+        dataSource.connection.use { connection ->
+            factory.createTable(connection)
+            seeder.seed(connection)
         }
     }
 
     suspend fun groupsOfUser(username: String): List<Group> = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "SELECT g.id, g.name, g.owner_username, g.color " +
                         "FROM groups g " +
                         "JOIN user_groups ug ON ug.group_id = g.id " +
@@ -52,8 +53,8 @@ class UserGroupRepository(
         groupId: Int,
         role: GroupRole = GroupRole.MEMBER,
     ): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "INSERT INTO user_groups (user_username, group_id, role) VALUES (?, ?, ?)"
             )
             stmt.setString(1, username.lowercase())
@@ -64,8 +65,8 @@ class UserGroupRepository(
     }
 
     suspend fun removeMember(username: String, groupId: Int): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "DELETE FROM user_groups WHERE user_username = ? AND group_id = ?"
             )
             stmt.setString(1, username.lowercase())
@@ -75,8 +76,8 @@ class UserGroupRepository(
     }
 
     suspend fun isMember(username: String, groupId: Int): Boolean = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "SELECT 1 FROM user_groups WHERE user_username = ? AND group_id = ?"
             )
             stmt.setString(1, username.lowercase())
@@ -86,8 +87,8 @@ class UserGroupRepository(
     }
 
     suspend fun membersOfGroup(groupId: Int): List<UserGroup> = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "SELECT user_username, group_id, role FROM user_groups WHERE group_id = ? ORDER BY joined_at ASC"
             )
             stmt.setInt(1, groupId)
@@ -107,8 +108,8 @@ class UserGroupRepository(
     }
 
     suspend fun countMembers(groupId: Int): Int = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "SELECT COUNT(*) AS c FROM user_groups WHERE group_id = ?"
             )
             stmt.setInt(1, groupId)
@@ -118,8 +119,8 @@ class UserGroupRepository(
     }
 
     suspend fun countAllGroups(): Int = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement("SELECT COUNT(*) AS c FROM groups")
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement("SELECT COUNT(*) AS c FROM groups")
             val rs = stmt.executeQuery()
             if (rs.next()) rs.getInt("c") else 0
         }

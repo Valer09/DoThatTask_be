@@ -5,6 +5,7 @@ import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.sql.Connection
 import java.sql.Timestamp
 import java.time.Instant
 import javax.sql.DataSource
@@ -15,15 +16,15 @@ class RefreshTokenRepository(
     seeder: ITableSeed,
 ) {
     init {
-        dataSource.connection.use { conn ->
-            factory.createTable(conn)
-            seeder.seed(conn)
+        dataSource.connection.use { connection ->
+            factory.createTable(connection)
+            seeder.seed(connection)
         }
     }
 
     suspend fun create(userUsername: String, tokenHash: String, expiresAt: Instant): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "INSERT INTO refresh_tokens (user_username, token_hash, expires_at) VALUES (?, ?, ?)"
             )
             stmt.setString(1, userUsername)
@@ -34,8 +35,8 @@ class RefreshTokenRepository(
     }
 
     suspend fun findByHash(tokenHash: String): RefreshToken? = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "SELECT id, user_username, token_hash, issued_at, expires_at, revoked_at " +
                         "FROM refresh_tokens WHERE token_hash = ?"
             )
@@ -54,8 +55,8 @@ class RefreshTokenRepository(
     }
 
     suspend fun revoke(tokenHash: String): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP " +
                         "WHERE token_hash = ? AND revoked_at IS NULL"
             )
@@ -65,8 +66,8 @@ class RefreshTokenRepository(
     }
 
     suspend fun revokeAllForUser(userUsername: String): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP " +
                         "WHERE user_username = ? AND revoked_at IS NULL"
             )

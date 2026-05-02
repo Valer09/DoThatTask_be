@@ -37,9 +37,9 @@ fun main(args: Array<String>) {
 
 
 
-            val isDev = this@module.environment.config.property("ktor.deployment.environment").getString() == "dev"
+            val isDev = this@module.environment.config.property("ktor.deployment.environment").getString()
 
-            if(isDev)
+            if(isDev == "dev" || isDev == "staging")
             {
 
                 allowNonSimpleContentTypes = true
@@ -72,7 +72,6 @@ fun main(args: Array<String>) {
                 allowMethod(HttpMethod.Put)
                 allowMethod(HttpMethod.Delete)
                 allowHost("serverless.synology.me:8443", schemes = listOf("https"))
-                //allowHost("raspi.tail0458e4.ts.net", schemes = listOf("https"))
             }
 
 

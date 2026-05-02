@@ -16,9 +16,9 @@ class InviteRepository(
     seeder: ITableSeed,
 ) {
     init {
-        dataSource.connection.use { conn ->
-            factory.createTable(conn)
-            seeder.seed(conn)
+        dataSource.connection.use { connection ->
+            factory.createTable(connection)
+            seeder.seed(connection)
         }
     }
 
@@ -38,8 +38,8 @@ class InviteRepository(
 
     suspend fun create(groupId: Int, inviterUsername: String, inviteeUsername: String): Int =
         withContext(Dispatchers.IO) {
-            dataSource.connection.use { conn ->
-                val stmt = conn.prepareStatement(
+            dataSource.connection.use { connection ->
+                val stmt = connection.prepareStatement(
                     "INSERT INTO invites (group_id, inviter_username, invitee_username, status) VALUES (?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS,
                 )
@@ -54,8 +54,8 @@ class InviteRepository(
         }
 
     suspend fun byId(id: Int): Invite? = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement("$BASE_SELECT WHERE i.id = ?")
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement("$BASE_SELECT WHERE i.id = ?")
             stmt.setInt(1, id)
             val rs = stmt.executeQuery()
             if (rs.next()) rs.toInvite() else null
@@ -63,8 +63,8 @@ class InviteRepository(
     }
 
     suspend fun incomingPendingFor(username: String): List<Invite> = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "$BASE_SELECT WHERE i.invitee_username = ? AND i.status = ? ORDER BY i.created_at DESC"
             )
             stmt.setString(1, username.lowercase())
@@ -75,8 +75,8 @@ class InviteRepository(
     }
 
     suspend fun existsPending(groupId: Int, inviteeUsername: String): Boolean = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "SELECT 1 FROM invites WHERE group_id = ? AND invitee_username = ? AND status = ?"
             )
             stmt.setInt(1, groupId)
@@ -87,8 +87,8 @@ class InviteRepository(
     }
 
     suspend fun updateStatus(id: Int, status: InviteStatus): Unit = withContext(Dispatchers.IO) {
-        dataSource.connection.use { conn ->
-            val stmt = conn.prepareStatement(
+        dataSource.connection.use { connection ->
+            val stmt = connection.prepareStatement(
                 "UPDATE invites SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?"
             )
             stmt.setInt(1, status.code)

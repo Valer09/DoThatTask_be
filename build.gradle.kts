@@ -46,7 +46,8 @@ dependencies {
     // HikariCP — connection pool
     implementation("com.zaxxer:HikariCP:5.1.0")
 
-    // Firebase Admin SDK
+    // Firebase Admin SDK — push notifications via FCM. Initialization is
+    // tolerant: if no service-account JSON is provided, calls are no-ops.
     implementation("com.google.firebase:firebase-admin:9.4.3")
 }
 

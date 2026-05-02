@@ -66,6 +66,7 @@ import javax.sql.DataSource
 
 val appModule = module {
 
+
     single<Application> {
         getKoin().getProperty("application") ?: throw IllegalStateException("Application property is missing")
     }
@@ -78,16 +79,14 @@ val appModule = module {
             ?: false
     }
 
-    // HikariCP DataSource — replaces single raw Connection
     single<DataSource>(qualifier = named("dataSource")) {
         val app = get<Application>()
         val useEmbedded = get<Boolean>(named("embedded"))
-
         if (useEmbedded) {
             val h2Server = Server.createWebServer("-web", "-webAllowOthers", "-webPort", "8082")
             h2Server.start()
             app.monitor.subscribe(ApplicationStopped) { h2Server.stop() }
-            app.log.info("Using embedded H2 database (HikariCP pool)")
+            app.log.info("Using embedded H2 database")
             HikariDataSource(HikariConfig().apply {
                 jdbcUrl = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1"
                 username = "root"
@@ -99,7 +98,7 @@ val appModule = module {
             val url = app.environment.config.property("ktor.postgres.url").getString()
             val user = app.environment.config.property("ktor.postgres.user").getString()
             val password = app.environment.config.property("ktor.postgres.password").getString()
-            app.log.info("Connecting to postgres at $url (HikariCP pool)")
+            app.log.info("Connecting to postgres database at $url")
             HikariDataSource(HikariConfig().apply {
                 jdbcUrl = url
                 username = user
@@ -222,7 +221,7 @@ val appModule = module {
         get(named("user_groups_table_seed"))) }
 
     single<TaskRepository> { TaskRepository(
-        get(named("dataSource")),
+            get(named("dataSource")),
         get(named("task_table_factory")),
         get(named("task_table_seed"))) }
 

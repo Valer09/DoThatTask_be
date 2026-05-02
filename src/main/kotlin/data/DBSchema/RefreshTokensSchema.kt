@@ -45,3 +45,25 @@ class RefreshTokensTableSeedH2 : ITableSeed {
 class RefreshTokensTableSeedPostgres : ITableSeed {
     override fun seed(connection: Connection) {}
 }
+
+class H2FcmTokenDialectQueries : IFcmTokenDialectQueries
+{
+    override fun registerFcmQuery(): String {
+        return """
+                MERGE INTO fcm_tokens (user_username, token, platform)
+                KEY (token)
+                VALUES (?, ?, ?) """
+    }
+}
+
+class PGFcmTokenDialectQueries : IFcmTokenDialectQueries
+{
+    override fun registerFcmQuery(): String {
+        return """
+                INSERT INTO fcm_tokens (user_username, token, platform)
+                VALUES (?, ?, ?)
+                ON CONFLICT (token) DO UPDATE SET
+                    user_username = EXCLUDED.user_username,
+                    platform      = EXCLUDED.platform """
+    }
+}

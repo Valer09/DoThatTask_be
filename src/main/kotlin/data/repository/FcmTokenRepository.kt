@@ -1,5 +1,6 @@
 package homeaq.dothattask.data.repository
 
+import homeaq.dothattask.data.DBSchema.IFcmTokenDialectQueries
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ class FcmTokenRepository(
     private val dataSource: DataSource,
     factory: ITableFactory,
     seeder: ITableSeed,
+    private val fcmTokenDialectQueries : IFcmTokenDialectQueries,
 ) {
     init {
         dataSource.connection.use { connection ->
@@ -28,33 +30,15 @@ class FcmTokenRepository(
     suspend fun register(username: String, token: String, platform: String = "android"): Unit =
         withContext(Dispatchers.IO) {
             dataSource.connection.use { connection ->
-                try {
-                    connection.autoCommit = false
-                    connection.transactionIsolation = Connection.TRANSACTION_SERIALIZABLE
-
-                    connection.prepareStatement("DELETE FROM fcm_tokens WHERE token = ?").use { del ->
-                        del.setString(1, token)
-                        del.executeUpdate()
-                    }
-
-                    connection.prepareStatement(
-                        "INSERT INTO fcm_tokens (user_username, token, platform) VALUES (?, ?, ?)"
-                    ).use { ins ->
-                        ins.setString(1, username.lowercase())
-                        ins.setString(2, token)
-                        ins.setString(3, platform)
-                        ins.executeUpdate()  // ← mancava questo
-                    }
-
-                    connection.commit()
-                } catch (e: Exception) {
-                    connection.rollback()
-                    throw e
-                } finally {
-                    connection.autoCommit = true
-                }
+                connection.prepareStatement(fcmTokenDialectQueries.registerFcmQuery()).use { stmt ->
+                    stmt.setString(1, username.lowercase())
+                    stmt.setString(2, token)
+                    stmt.setString(3, platform)
+                    stmt.executeUpdate()
             }
         }
+    }
+
 
     suspend fun unregister(token: String): Boolean = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->

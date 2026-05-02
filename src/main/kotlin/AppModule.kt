@@ -40,6 +40,8 @@ import homeaq.dothattask.data.DBSchema.GroupCategoriesTableFactoryH2
 import homeaq.dothattask.data.DBSchema.GroupCategoriesTableFactoryPostgres
 import homeaq.dothattask.data.DBSchema.GroupCategoriesTableSeedH2
 import homeaq.dothattask.data.DBSchema.GroupCategoriesTableSeedPostgres
+import homeaq.dothattask.data.DBSchema.H2FcmTokenDialectQueries
+import homeaq.dothattask.data.DBSchema.PGFcmTokenDialectQueries
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import homeaq.dothattask.data.repository.CategoryRepository
@@ -235,10 +237,13 @@ val appModule = module {
         get(named("refresh_tokens_table_factory")),
         get(named("refresh_tokens_table_seed"))) }
 
-    single<FcmTokenRepository> { FcmTokenRepository(
-        get(named("dataSource")),
+    single<FcmTokenRepository> {
+        val useEmbedded = get<Boolean>(named("embedded"))
+
+        FcmTokenRepository(get(named("dataSource")),
         get(named("fcm_tokens_table_factory")),
-        get(named("fcm_tokens_table_seed"))) }
+        get(named("fcm_tokens_table_seed")),
+            if(useEmbedded) H2FcmTokenDialectQueries() else PGFcmTokenDialectQueries()) }
 
     single<CategoryRepository> { CategoryRepository(
         dataSource = get(named("dataSource")),

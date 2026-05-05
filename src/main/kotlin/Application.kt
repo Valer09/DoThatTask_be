@@ -9,6 +9,7 @@ import homeaq.dothattask.data.repository.GroupRepository
 import homeaq.dothattask.data.repository.InviteRepository
 import homeaq.dothattask.data.repository.RefreshTokenRepository
 import homeaq.dothattask.data.repository.TaskRepository
+import homeaq.dothattask.data.repository.EmailVerificationTokenRepository
 import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.repository.UserRepository
 import io.ktor.http.HttpHeaders
@@ -93,6 +94,9 @@ fun main(args: Array<String>) {
         val refreshTokenRepository: RefreshTokenRepository by inject()
         val fcmTokenRepository: FcmTokenRepository by inject()
         val firebaseConfig: FirebaseConfig by inject()
+        // Verification-token table is owned by AuthService; init eagerly to
+        // run its `CREATE TABLE` migration during boot, just like the others.
+        val emailVerificationTokenRepository: EmailVerificationTokenRepository by inject()
         // Categories table must be created BEFORE the tasks LEFT JOIN can resolve;
         // tasks already had a category INTEGER column whose values now reference
         // categories.id (1=Social, 2=Career, 3=Health pre-seeded).
@@ -106,6 +110,7 @@ fun main(args: Array<String>) {
         refreshTokenRepository.hashCode()
         fcmTokenRepository.hashCode()
         firebaseConfig.hashCode()
+        emailVerificationTokenRepository.hashCode()
 
         val jwtConfig: JwtConfig by inject()
 

@@ -42,6 +42,14 @@ import homeaq.dothattask.data.DBSchema.GroupCategoriesTableSeedH2
 import homeaq.dothattask.data.DBSchema.GroupCategoriesTableSeedPostgres
 import homeaq.dothattask.data.DBSchema.H2FcmTokenDialectQueries
 import homeaq.dothattask.data.DBSchema.PGFcmTokenDialectQueries
+import homeaq.dothattask.data.DBSchema.EmailVerificationTokensTableFactoryH2
+import homeaq.dothattask.data.DBSchema.EmailVerificationTokensTableFactoryPostgres
+import homeaq.dothattask.data.DBSchema.EmailVerificationTokensTableSeedH2
+import homeaq.dothattask.data.DBSchema.EmailVerificationTokensTableSeedPostgres
+import homeaq.dothattask.data.repository.EmailVerificationTokenRepository
+import homeaq.dothattask.email.EmailConfig
+import homeaq.dothattask.email.EmailService
+import homeaq.dothattask.email.ResendClient
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import homeaq.dothattask.data.repository.CategoryRepository
@@ -163,6 +171,11 @@ val appModule = module {
         if (useEmbedded) GroupCategoriesTableFactoryH2() else GroupCategoriesTableFactoryPostgres()
     }
 
+    single<ITableFactory>(qualifier = named("email_verification_tokens_table_factory")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) EmailVerificationTokensTableFactoryH2() else EmailVerificationTokensTableFactoryPostgres()
+    }
+
     single<ITableSeed>(qualifier = named("task_table_seed")) {
         val useEmbedded = get<Boolean>(named("embedded"))
         if (useEmbedded) TaskTableSeedH2() else TaskTableSeedPostgres()
@@ -206,6 +219,11 @@ val appModule = module {
     single<ITableSeed>(qualifier = named("group_categories_table_seed")) {
         val useEmbedded = get<Boolean>(named("embedded"))
         if (useEmbedded) GroupCategoriesTableSeedH2() else GroupCategoriesTableSeedPostgres()
+    }
+
+    single<ITableSeed>(qualifier = named("email_verification_tokens_table_seed")) {
+        val useEmbedded = get<Boolean>(named("embedded"))
+        if (useEmbedded) EmailVerificationTokensTableSeedH2() else EmailVerificationTokensTableSeedPostgres()
     }
 
     single<UserRepository> { UserRepository(
@@ -264,12 +282,27 @@ val appModule = module {
 
     single<JwtConfig> { JwtConfig(get<Application>().environment.config) }
 
+    single<EmailConfig> { EmailConfig(get<Application>().environment.config) }
+    single<ResendClient> { ResendClient(get()) }
+    single<EmailService> { EmailService(resend = get(), config = get()) }
+
+    single<EmailVerificationTokenRepository> {
+        EmailVerificationTokenRepository(
+            get(named("dataSource")),
+            get(named("email_verification_tokens_table_factory")),
+            get(named("email_verification_tokens_table_seed")),
+        )
+    }
+
     single<AuthService> {
         AuthService(
             jwt = get(),
             userRepository = get(),
             refreshTokenRepository = get(),
             userGroupRepository = get(),
+            emailVerificationTokens = get(),
+            emailService = get(),
+            emailConfig = get(),
         )
     }
 
@@ -288,7 +321,8 @@ val appModule = module {
             groups = get(),
             userGroups = get(),
             users = get(),
-            notification = get()
+            notification = get(),
+            emailService = get(),
         )
     }
 

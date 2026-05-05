@@ -4,7 +4,13 @@ import at.favre.lib.crypto.bcrypt.BCrypt
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class User(val name: String, val username: String, val password_hash: String)
+data class User(
+    val name: String,
+    val username: String,
+    val password_hash: String,
+    val email: String? = null,
+    val emailVerified: Boolean = false,
+)
 
 class PasswordHash
 {

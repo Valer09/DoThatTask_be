@@ -38,6 +38,16 @@ sealed class UsersSchema
                     "ON users (reminder_last_sent) " +
                     "WHERE reminder_enabled = TRUE"
 
+        // email + email_verified — nullable in transition because legacy rows
+        // do not yet have an email; new registrations enforce non-null at the
+        // service layer. Unique index allows multiple NULLs on both engines.
+        const val ALTER_USERS_ADD_EMAIL_COLUMNS_PG =
+            "ALTER TABLE users " +
+                    "ADD COLUMN IF NOT EXISTS email CITEXT," +
+                    "ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE"
+
+        const val CREATE_USERS_EMAIL_UNIQUE_INDEX =
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email)"
     }
 }
 
@@ -50,6 +60,9 @@ class UserTableFactoryH2 : ITableFactory
         val ALTER_USERS_ADD_REMINDER_LAST_SENT = "ALTER TABLE users ADD COLUMN IF NOT EXISTS reminder_last_sent TIMESTAMP"
         val ALTER_USERS_ADD_REMINDER_LAST_OPENED = "ALTER TABLE users ADD COLUMN IF NOT EXISTS reminder_last_opened TIMESTAMP"
 
+        val ALTER_USERS_ADD_EMAIL = "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(320)"
+        val ALTER_USERS_ADD_EMAIL_VERIFIED = "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE"
+
         try {
 
             val wasAutoCommit = connection.autoCommit
@@ -60,7 +73,10 @@ class UserTableFactoryH2 : ITableFactory
                 ALTER_USERS_ADD_REMINDER_ENABLED,
                 ALTER_USERS_ADD_REMINDER_CONSECUTIVE_UNOPENED,
                 ALTER_USERS_ADD_REMINDER_LAST_SENT,
-                ALTER_USERS_ADD_REMINDER_LAST_OPENED
+                ALTER_USERS_ADD_REMINDER_LAST_OPENED,
+                ALTER_USERS_ADD_EMAIL,
+                ALTER_USERS_ADD_EMAIL_VERIFIED,
+                UsersSchema.CREATE_USERS_EMAIL_UNIQUE_INDEX,
             ).forEach { sql ->
                 connection.createStatement().execute(sql)
             }
@@ -90,6 +106,8 @@ class UserTableFactoryPostgres : ITableFactory
                 statement.executeUpdate(UsersSchema.CREATE_TABLE_USERS_PG)
                 statement.executeUpdate(UsersSchema.ALTER_USERS_ADD_REMINDER_COLUMNS)
                 statement.executeUpdate(UsersSchema.CREATE_REMINDER_INDEX)
+                statement.executeUpdate(UsersSchema.ALTER_USERS_ADD_EMAIL_COLUMNS_PG)
+                statement.executeUpdate(UsersSchema.CREATE_USERS_EMAIL_UNIQUE_INDEX)
             }
 
             connection.autoCommit = wasAutoCommit
@@ -107,19 +125,20 @@ class UserTableSeedH2() : ITableSeed
 {
     override fun seed(connection: Connection)
     {
-        val statement = connection.prepareStatement("MERGE INTO users (name, username, password_hash) KEY(username) VALUES (?, ?, ?)")
+        val statement = connection.prepareStatement(
+            "MERGE INTO users (name, username, password_hash, email, email_verified) " +
+                    "KEY(username) VALUES (?, ?, ?, ?, ?)"
+        )
 
-        demoUsers().forEach {
+        (demoUsers() + demoUsersAlt()).forEach {
             statement.setString(1, it.name)
             statement.setString(2, it.username)
             statement.setString(3, it.password_hash)
-            statement.executeUpdate()
-        }
-
-        demoUsersAlt().forEach {
-            statement.setString(1, it.name)
-            statement.setString(2, it.username)
-            statement.setString(3, it.password_hash)
+            // Demo seed emails. The `@local.test` TLD is reserved for testing
+            // and never delivers mail, so seed users get a stable identity
+            // without risking accidental real-world delivery.
+            statement.setString(4, "${it.username}@local.test")
+            statement.setBoolean(5, true)
             statement.executeUpdate()
         }
     }
@@ -153,4 +172,3 @@ class UserTableSeedPostgres() : ITableSeed
 {
     override fun seed(connection: Connection){}
 }
-

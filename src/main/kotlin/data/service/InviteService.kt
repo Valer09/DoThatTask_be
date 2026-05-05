@@ -10,16 +10,19 @@ import homeaq.dothattask.data.repository.GroupRepository
 import homeaq.dothattask.data.repository.InviteRepository
 import homeaq.dothattask.data.repository.UserGroupRepository
 import homeaq.dothattask.data.repository.UserRepository
-import org.koin.ktor.ext.inject
-import kotlin.getValue
+import homeaq.dothattask.email.EmailService
+import org.slf4j.LoggerFactory
 
 class InviteService(
     private val invites: InviteRepository,
     private val groups: GroupRepository,
     private val userGroups: UserGroupRepository,
     private val users: UserRepository,
-    private val notification: NotificationService
+    private val notification: NotificationService,
+    private val emailService: EmailService,
 ) {
+
+    private val log = LoggerFactory.getLogger(InviteService::class.java)
 
     /**
      * Sends an invite for [groupId]. The caller must be the owner of that
@@ -60,7 +63,28 @@ class InviteService(
             invitationBody,
             NotificationData.getNotificationData(NotificationType.GroupInvitation))
 
+        // Email notification — best effort. Skipped silently if the invitee
+        // hasn't supplied an email yet (legacy account) or if the inviter
+        // record can't be loaded for the "from" address.
+        runCatching { dispatchInviteEmail(invitee.username, inviterUsername, created.groupName) }
+            .onFailure { log.warn("Invite email dispatch failed: {}", it.message) }
+
         return DataResponse.success(created, "Invite sent")
+    }
+
+    private suspend fun dispatchInviteEmail(inviteeUsername: String, inviterUsername: String, groupName: String) {
+        val invitee = users.userByUsername(inviteeUsername) ?: return
+        val toEmail = invitee.email?.takeIf { it.isNotBlank() } ?: return
+        val inviter = users.userByUsername(inviterUsername)
+        // Prefer the inviter's email so the message says exactly who invited
+        // them. Fallback to username if no email is on file (legacy users).
+        val inviterContact = inviter?.email?.takeIf { it.isNotBlank() } ?: inviterUsername
+        emailService.sendGroupInviteEmail(
+            toEmail = toEmail,
+            inviteeName = invitee.name,
+            inviterEmail = inviterContact,
+            groupName = groupName,
+        )
     }
 
     suspend fun incoming(username: String): DataResponse<List<Invite>> =

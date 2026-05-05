@@ -49,6 +49,13 @@ dependencies {
     // Firebase Admin SDK — push notifications via FCM. Initialization is
     // tolerant: if no service-account JSON is provided, calls are no-ops.
     implementation("com.google.firebase:firebase-admin:9.4.3")
+
+    // Ktor HTTP client — used server-side to call the Resend API for
+    // transactional emails (verification, group invitation notices).
+    implementation("io.ktor:ktor-client-core")
+    implementation("io.ktor:ktor-client-cio")
+    implementation("io.ktor:ktor-client-content-negotiation")
+    implementation("io.ktor:ktor-client-logging")
 }
 
 kotlin {

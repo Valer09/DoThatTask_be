@@ -35,7 +35,8 @@ fun Application.taskRoutes()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
                     val groupId = call.requireGroupId(userGroups) ?: return@get
 
-                    val creator = principal.getUserName()//call.request.queryParameters["creator"]
+                    //Next step: sys admin can receive creator parameter: call.request.queryParameters["creator"]
+                    val creator = principal.getUserName()
                     val categoryParam = call.request.queryParameters["category"]
                     val assignee = call.request.queryParameters["assignee"]
 

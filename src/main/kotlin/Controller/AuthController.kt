@@ -23,6 +23,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.util.reflect.TypeInfo
 import kotlinx.serialization.json.Json
 import org.koin.ktor.ext.inject
 
@@ -54,13 +55,17 @@ fun Application.authRoutes() {
                     if (identifier.isBlank() || password.isBlank()) {
                         return@post call.respond(HttpStatusCode.BadRequest)
                     }
+                        when(val loginResponse = authService.login(identifier, password))
+                        { is AuthService.LoginResult.EmailNotConfirmed -> return@post call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Need email confirmation")
+)
+                            is AuthService.LoginResult.Success ->
+                                {
 
-                    val tokens = authService.login(identifier, password)
-                        ?: return@post call.respond(HttpStatusCode.Unauthorized)
-
-                    runCatching { user.reactivateUserNotification(tokens.user.username) }
-
-                    call.respond(HttpStatusCode.OK, tokens)
+                                    runCatching { user.reactivateUserNotification(loginResponse.authTokens?.user?.username ?: return@post call.respond(HttpStatusCode.Unauthorized)) }
+                                    call.respond(HttpStatusCode.OK, message = loginResponse.authTokens)
+                                }
+                            AuthService.LoginResult.Unauthorized -> return@post call.respond(HttpStatusCode.Unauthorized)
+                        }
                 } catch (_: JsonConvertException) {
                     call.respond(HttpStatusCode.BadRequest)
                 } catch (_: IllegalStateException) {

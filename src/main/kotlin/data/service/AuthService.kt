@@ -31,22 +31,30 @@ class AuthService(
     private val log = LoggerFactory.getLogger(AuthService::class.java)
     private val emailRegex = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
 
-    /**
-     * Email-first login. The [identifier] may be either an email (with `@`)
-     * or — for retro-compatibility with seeded demo users / legacy clients —
-     * a bare username.
-     */
-    suspend fun login(identifier: String, password: String): AuthTokens? {
-        val user = userRepository.userByEmailOrUsername(identifier) ?: return null
-        if (!PasswordHash.verifyPassword(password, user.password_hash)) return null
-        return issueTokens(user)
+    sealed class LoginResult
+    {
+        data class Success(val authTokens: AuthTokens ) : LoginResult()
+        data object Unauthorized: LoginResult()
+        data object EmailNotConfirmed : LoginResult()
     }
-
     sealed class RegisterResult {
         data class Success(val tokens: AuthTokens) : RegisterResult()
         data object EmailTaken : RegisterResult()
         data object UsernameTaken : RegisterResult()
         data object InvalidEmail : RegisterResult()
+    }
+
+    /**
+     * Email-first login. The [identifier] may be either an email (with `@`)
+     * or — for retro-compatibility with seeded demo users / legacy clients —
+     * a bare username.
+     */
+    suspend fun login(identifier: String, password: String): LoginResult {
+        val user = userRepository.userByEmailOrUsername(identifier) ?: return LoginResult.Unauthorized
+        if (!PasswordHash.verifyPassword(password, user.password_hash)) return LoginResult.Unauthorized
+        if (!user.emailVerified)
+            return LoginResult.EmailNotConfirmed
+        return LoginResult.Success(issueTokens(user))
     }
 
     /**

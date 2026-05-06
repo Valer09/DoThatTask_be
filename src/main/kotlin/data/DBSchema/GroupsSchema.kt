@@ -1,5 +1,6 @@
 package homeaq.dothattask.data.DBSchema
 
+import homeaq.dothattask.data.DBSchema.GroupsSchema.Companion.ALTER_GROUPS_ADD_EMAIL_COLUMNS_PG
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import java.sql.Connection
@@ -12,7 +13,8 @@ sealed class GroupsSchema {
             "CREATE TABLE IF NOT EXISTS GROUPS (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
                     "name VARCHAR(150) NOT NULL UNIQUE," +
-                    "owner_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "owner_username VARCHAR(150) REFERENCES users(username)," +
+                    "owner_email VARCHAR(150) NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "color VARCHAR(9) NOT NULL DEFAULT '$DEFAULT_COLOR'," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
 
@@ -20,12 +22,17 @@ sealed class GroupsSchema {
             "CREATE TABLE IF NOT EXISTS GROUPS (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
                     "name VARCHAR(150) NOT NULL UNIQUE," +
-                    "owner_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "owner_username CITEXT REFERENCES users(username)," +
+                    "owner_email CITEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "color VARCHAR(9) NOT NULL DEFAULT '$DEFAULT_COLOR'," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
 
         const val ALTER_GROUPS_ADD_COLOR =
             "ALTER TABLE groups ADD COLUMN IF NOT EXISTS color VARCHAR(9) NOT NULL DEFAULT '$DEFAULT_COLOR'"
+
+        const val ALTER_GROUPS_ADD_EMAIL_COLUMNS_PG =
+            "ALTER TABLE groups " +
+                    "ADD COLUMN IF NOT EXISTS owner_email CITEXT REFERENCES users(email) ON DELETE CASCADE"
     }
 }
 
@@ -33,6 +40,7 @@ class GroupsTableFactoryH2 : ITableFactory {
     override fun createTable(connection: Connection) {
         connection.createStatement().executeUpdate(GroupsSchema.CREATE_TABLE_GROUPS_H2)
         connection.createStatement().executeUpdate(GroupsSchema.ALTER_GROUPS_ADD_COLOR)
+        connection.createStatement().executeUpdate(GroupsSchema.ALTER_GROUPS_ADD_EMAIL_COLUMNS_PG)
     }
 }
 
@@ -40,6 +48,7 @@ class GroupsTableFactoryPostgres : ITableFactory {
     override fun createTable(connection: Connection) {
         connection.createStatement().executeUpdate(GroupsSchema.CREATE_TABLE_GROUPS_PG)
         connection.createStatement().executeUpdate(GroupsSchema.ALTER_GROUPS_ADD_COLOR)
+        connection.createStatement().executeUpdate(GroupsSchema.ALTER_GROUPS_ADD_EMAIL_COLUMNS_PG)
     }
 }
 

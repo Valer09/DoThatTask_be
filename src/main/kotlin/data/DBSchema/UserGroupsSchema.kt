@@ -8,19 +8,21 @@ sealed class UserGroupsSchema {
     companion object {
         const val CREATE_TABLE_USER_GROUPS_H2 =
             "CREATE TABLE IF NOT EXISTS USER_GROUPS (" +
-                    "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_username VARCHAR(150) REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_email VARCHAR(150) NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE," +
                     "role INTEGER NOT NULL DEFAULT 1," +
                     "joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "PRIMARY KEY (user_username, group_id))"
+                    "PRIMARY KEY (user_email, group_id))"
 
         const val CREATE_TABLE_USER_GROUPS_PG =
             "CREATE TABLE IF NOT EXISTS USER_GROUPS (" +
-                    "user_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_username CITEXT REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_email CITEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE," +
                     "role INTEGER NOT NULL DEFAULT 1," +
                     "joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "PRIMARY KEY (user_username, group_id))"
+                    "PRIMARY KEY (user_email, group_id))"
     }
 }
 
@@ -45,11 +47,11 @@ class UserGroupsTableSeedH2 : ITableSeed {
         val groupId = rs.getInt("id")
 
         val insert = connection.prepareStatement(
-            "MERGE INTO user_groups (user_username, group_id, role) KEY(user_username, group_id) VALUES (?, ?, ?)"
+            "MERGE INTO user_groups (user_email, group_id, role) KEY(user_email, group_id) VALUES (?, ?, ?)"
         )
         val demoUsers = UserTableSeedH2.demoUsers()
         demoUsers.forEachIndexed { idx, user ->
-            insert.setString(1, user.username)
+            insert.setString(1, user.email)
             insert.setInt(2, groupId)
             // Role 2 = ADMIN for the owner (first demo user), 1 = MEMBER for the rest.
             insert.setInt(3, if (idx == 0) 2 else 1)

@@ -13,7 +13,8 @@ enum class GroupRole(val code: Int) {
 
 @Serializable
 data class UserGroup(
-    val userUsername: String,
+    val userUsername: String?,
     val groupId: Int,
     val role: GroupRole = GroupRole.MEMBER,
+    val email: String
 )

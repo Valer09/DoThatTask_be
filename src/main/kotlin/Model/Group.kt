@@ -6,22 +6,23 @@ import kotlinx.serialization.Serializable
 data class Group(
     val id: Int,
     val name: String,
-    val ownerUsername: String,
+    val ownerEmail: String,
     val color: String,
 )
 
 @Serializable
 data class GroupMember(
-    val username: String,
+    val username: String?,
     val name: String,
     val role: GroupRole,
+    val email: String
 )
 
 @Serializable
 data class GroupInfo(
     val id: Int,
     val name: String,
-    val ownerUsername: String,
+    val ownerEmail: String,
     val color: String,
     val members: List<GroupMember>,
 )
@@ -37,4 +38,4 @@ data class GroupSummary(
 data class CreateGroupRequest(val name: String)
 
 @Serializable
-data class SendInviteRequest(val inviteeUsername: String)
+data class SendInviteRequest(val inviteeEmail: String)

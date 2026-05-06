@@ -31,7 +31,7 @@ fun Application.groupRoutes() {
                         ?: return@post call.respond(HttpStatusCode.Unauthorized)
                     try {
                         val body = call.receive<CreateGroupRequest>()
-                        val response = groupService.create(body.name, principal.getUserName())
+                        val response = groupService.create(body.name, principal.getEmail())
                         when (response.result) {
                             DataResult.SUCCESS -> call.respond(HttpStatusCode.Created, response.data!!)
                             DataResult.FORBIDDEN -> call.respond(HttpStatusCode.Conflict, response.message)
@@ -48,7 +48,7 @@ fun Application.groupRoutes() {
                 get("/me") {
                     val principal = call.principal<UserPrincipal>()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
-                    val response = groupService.myGroups(principal.getUserName())
+                    val response = groupService.myGroups(principal.getEmail())
                     when (response.result) {
                         DataResult.SUCCESS -> call.respond(HttpStatusCode.OK, response.data!!)
                         else -> call.respond(HttpStatusCode.InternalServerError, response.message)
@@ -59,7 +59,7 @@ fun Application.groupRoutes() {
                     val principal = call.principal<UserPrincipal>()
                         ?: return@post call.respond(HttpStatusCode.Unauthorized)
                     val groupId = call.requireGroupId(userGroups) ?: return@post
-                    val response = groupService.leave(principal.getUserName(), groupId)
+                    val response = groupService.leave(principal.getEmail(), groupId)
                     when (response.result) {
                         DataResult.SUCCESS -> call.respond(HttpStatusCode.OK, response.message)
                         DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, response.message)

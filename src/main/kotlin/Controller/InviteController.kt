@@ -33,7 +33,8 @@ fun Application.inviteRoutes() {
                     val groupId = call.requireGroupId(userGroups) ?: return@post
                     try {
                         val body = call.receive<SendInviteRequest>()
-                        val response = inviteService.send(principal.getUserName(), groupId, body.inviteeUsername)
+
+                        val response = inviteService.send(principal.getEmail(), groupId, body.inviteeEmail)
                         when (response.result) {
                             DataResult.SUCCESS -> call.respond(HttpStatusCode.Created, response.data!!)
                             DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, response.message)

@@ -43,28 +43,39 @@ fun Application.authRoutes() {
                     val password: String
                     val parser = Json { ignoreUnknownKeys = true }
                     val newShape = runCatching { parser.decodeFromString(LoginRequest.serializer(), rawBody) }.getOrNull()
-                    if (newShape != null) {
+                    if (newShape != null)
+                    {
                         identifier = newShape.email
                         password = newShape.password
-                    } else {
-                        val legacy = runCatching { parser.decodeFromString(LegacyLoginRequest.serializer(), rawBody) }.getOrNull()
-                            ?: return@post call.respond(HttpStatusCode.BadRequest)
-                        identifier = legacy.username
-                        password = legacy.password
                     }
+                    else return@post call.respond(HttpStatusCode.BadRequest)
+
                     if (identifier.isBlank() || password.isBlank()) {
                         return@post call.respond(HttpStatusCode.BadRequest)
                     }
                         when(val loginResponse = authService.login(identifier, password))
-                        { is AuthService.LoginResult.EmailNotConfirmed -> return@post call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Need email confirmation")
-)
+                        {
+                            /* is AuthService.LoginResult.EmailNotConfirmed
+                                -> {call.respond(HttpStatusCode.OK, message = loginResponse.authTokens)}
+                                Suppressed until full email service is available -> return@post call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Need email confirmation")
+                             */
+
+                            is AuthService.LoginResult.Unauthorized ->
+                                {
+                                    return@post call.respond(HttpStatusCode.Unauthorized)
+                                }
                             is AuthService.LoginResult.Success ->
                                 {
-
                                     runCatching { user.reactivateUserNotification(loginResponse.authTokens?.user?.username ?: return@post call.respond(HttpStatusCode.Unauthorized)) }
                                     call.respond(HttpStatusCode.OK, message = loginResponse.authTokens)
                                 }
-                            AuthService.LoginResult.Unauthorized -> return@post call.respond(HttpStatusCode.Unauthorized)
+                            is AuthService.LoginResult.EmailNotConfirmed ->
+                            {
+                                runCatching { user.reactivateUserNotification(loginResponse.authTokens?.user?.username ?: return@post call.respond(HttpStatusCode.Unauthorized)) }
+                                call.respond(HttpStatusCode.OK, message = loginResponse.authTokens)
+                            }
+
+
                         }
                 } catch (_: JsonConvertException) {
                     call.respond(HttpStatusCode.BadRequest)

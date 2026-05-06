@@ -29,20 +29,20 @@ class InviteService(
      * group (multi-group: owners can invite to any group they own; the
      * invitee may already belong to other groups).
      */
-    suspend fun send(inviterUsername: String, groupId: Int, inviteeUsername: String): DataResponse<Invite> {
-        val target = inviteeUsername.trim()
-        if (target.isEmpty()) return DataResponse.validationError("Invitee username cannot be empty")
-        if (target.equals(inviterUsername, ignoreCase = true)) {
+    suspend fun send(inviterEmail: String, groupId: Int, inviteeEmail: String): DataResponse<Invite> {
+        val target = inviteeEmail.trim()
+        if (target.isEmpty()) return DataResponse.validationError("Invitee email cannot be empty")
+        if (target.equals(inviterEmail, ignoreCase = true)) {
             return DataResponse.validationError("Cannot invite yourself")
         }
 
         val group = groups.byId(groupId)
             ?: return DataResponse.notFound("Group not found")
-        if (!group.ownerUsername.equals(inviterUsername, ignoreCase = true)) {
-            return DataResponse.forbidden("Only the group owner can invite new members")
+        if (!group.ownerEmail.equals(inviterEmail, ignoreCase = true)) {
+            return DataResponse.forbidden("Only the group administrators can invite new members")
         }
 
-        val invitee = users.userByUsername(target)
+        val invitee = users.userByEmail(target)
             ?: return DataResponse.notFound("No user with username '$target'")
 
         if (userGroups.isMember(invitee.username, groupId)) {
@@ -52,13 +52,13 @@ class InviteService(
             return DataResponse.validationError("A pending invite already exists for this user in this group")
         }
 
-        val id = invites.create(groupId, inviterUsername, invitee.username)
+        val id = invites.create(groupId, inviterEmail, invitee.username)
         if (id == -1) return DataResponse.databaseError("Unable to create invite")
         val created = invites.byId(id) ?: return DataResponse.databaseError("Invite created but not retrievable")
         val invitationBody = "You received a invitation to join the group ${created.groupName} from ${created.inviterUsername}"
 
         notification.sendToUser(
-            created.inviteeUsername,
+            created.inviteeEmail,
             "Group Invitation",
             invitationBody,
             NotificationData.getNotificationData(NotificationType.GroupInvitation))
@@ -66,7 +66,7 @@ class InviteService(
         // Email notification — best effort. Skipped silently if the invitee
         // hasn't supplied an email yet (legacy account) or if the inviter
         // record can't be loaded for the "from" address.
-        runCatching { dispatchInviteEmail(invitee.username, inviterUsername, created.groupName) }
+        runCatching { dispatchInviteEmail(invitee.email, inviterEmail, created.groupName) }
             .onFailure { log.warn("Invite email dispatch failed: {}", it.message) }
 
         return DataResponse.success(created, "Invite sent")
@@ -90,26 +90,26 @@ class InviteService(
     suspend fun incoming(username: String): DataResponse<List<Invite>> =
         DataResponse.success(invites.incomingPendingFor(username))
 
-    suspend fun accept(inviteId: Int, username: String): DataResponse<Invite> {
+    suspend fun accept(inviteId: Int, email: String): DataResponse<Invite> {
         val invite = invites.byId(inviteId) ?: return DataResponse.notFound("Invite not found")
-        if (!invite.inviteeUsername.equals(username, ignoreCase = true)) {
+        if (!invite.inviteeEmail.equals(email, ignoreCase = true)) {
             return DataResponse.forbidden("This invite is not addressed to you")
         }
         if (invite.status != InviteStatus.PENDING) {
             return DataResponse.validationError("Invite is no longer pending")
         }
-        if (userGroups.isMember(username, invite.groupId)) {
+        if (userGroups.isMember(email, invite.groupId)) {
             return DataResponse.validationError("You are already a member of this group")
         }
-        userGroups.addMember(username, invite.groupId, GroupRole.MEMBER)
+        userGroups.addMember(email, invite.groupId, GroupRole.MEMBER)
         invites.updateStatus(inviteId, InviteStatus.ACCEPTED)
         val updated = invites.byId(inviteId) ?: invite
         return DataResponse.success(updated, "Invite accepted")
     }
 
-    suspend fun reject(inviteId: Int, username: String): DataResponse<Invite> {
+    suspend fun reject(inviteId: Int, email: String): DataResponse<Invite> {
         val invite = invites.byId(inviteId) ?: return DataResponse.notFound("Invite not found")
-        if (!invite.inviteeUsername.equals(username, ignoreCase = true)) {
+        if (!invite.inviteeEmail.equals(email, ignoreCase = true)) {
             return DataResponse.forbidden("This invite is not addressed to you")
         }
         if (invite.status != InviteStatus.PENDING) {
@@ -120,11 +120,11 @@ class InviteService(
         return DataResponse.success(updated, "Invite rejected")
     }
 
-    suspend fun revoke(inviteId: Int, callerUsername: String): DataResponse<Invite> {
+    suspend fun revoke(inviteId: Int, callerEmail: String): DataResponse<Invite> {
         val invite = invites.byId(inviteId) ?: return DataResponse.notFound("Invite not found")
         val group = groups.byId(invite.groupId)
             ?: return DataResponse.databaseError("Group not found")
-        if (!group.ownerUsername.equals(callerUsername, ignoreCase = true)) {
+        if (!group.ownerEmail.equals(callerEmail, ignoreCase = true)) {
             return DataResponse.forbidden("Only the group owner can revoke invites")
         }
         if (invite.status != InviteStatus.PENDING) {

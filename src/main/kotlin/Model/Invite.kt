@@ -20,6 +20,6 @@ data class Invite(
     val groupName: String,
     val groupColor: String,
     val inviterUsername: String,
-    val inviteeUsername: String,
+    val inviteeEmail: String,
     val status: InviteStatus,
 )

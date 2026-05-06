@@ -6,7 +6,6 @@ import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Statement
 import javax.sql.DataSource
@@ -33,7 +32,7 @@ class InviteRepository(
         groupName = getString("group_name"),
         groupColor = getString("group_color"),
         inviterUsername = getString("inviter_username"),
-        inviteeUsername = getString("invitee_username"),
+        inviteeEmail = getString("invitee_username"),
         status = InviteStatus.fromCode(getInt("status")),
     )
 

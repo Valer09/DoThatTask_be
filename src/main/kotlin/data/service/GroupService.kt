@@ -31,16 +31,16 @@ class GroupService(
         "#EC407A", // pink
     )
 
-    suspend fun create(name: String, ownerUsername: String): DataResponse<GroupInfo> {
+    suspend fun create(name: String, ownerEmail: String): DataResponse<GroupInfo> {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return DataResponse.validationError("Group name cannot be empty")
         if (groups.byName(trimmed) != null) {
             return DataResponse.validationError("A group with this name already exists")
         }
         val color = palette[userGroups.countAllGroups() % palette.size]
-        val id = groups.create(trimmed, ownerUsername, color)
+        val id = groups.create(trimmed, ownerEmail, color)
         if (id == -1) return DataResponse.databaseError("Unable to retrieve the id of the newly created group")
-        userGroups.addMember(ownerUsername, id, GroupRole.ADMIN)
+        userGroups.addMember(ownerEmail, id, GroupRole.ADMIN)
         // Every new group automatically inherits the default categories
         // (Social/Career/Health). Custom categories can be added later via
         // POST /api/categories.
@@ -49,24 +49,24 @@ class GroupService(
         return DataResponse.success(info, "Group created successfully")
     }
 
-    suspend fun myGroups(username: String): DataResponse<List<GroupInfo>> {
-        val list = userGroups.groupsOfUser(username).mapNotNull { loadInfo(it.id) }
+    suspend fun myGroups(userEmail: String): DataResponse<List<GroupInfo>> {
+        val list = userGroups.groupsOfUser(userEmail).mapNotNull { loadInfo(it.id) }
         return DataResponse.success(list)
     }
 
-    suspend fun leave(username: String, groupId: Int): DataResponse<Boolean> {
-        if (!userGroups.isMember(username, groupId)) {
+    suspend fun leave(email: String, groupId: Int): DataResponse<Boolean> {
+        if (!userGroups.isMember(email, groupId)) {
             return DataResponse.notFound("You are not a member of this group")
         }
         val group = groups.byId(groupId) ?: return DataResponse.notFound("Group not found")
-        val isOwner = group.ownerUsername.equals(username, ignoreCase = true)
+        val isOwner = group.ownerEmail.equals(email, ignoreCase = true)
         val memberCount = userGroups.countMembers(groupId)
         if (isOwner && memberCount > 1) {
             return DataResponse.forbidden(
                 "Owner cannot leave while other members remain. Remove the other members or transfer ownership first."
             )
         }
-        userGroups.removeMember(username, groupId)
+        userGroups.removeMember(email, groupId)
         if (memberCount <= 1) {
             // Last member — clean up the empty group.
             groups.delete(groupId)
@@ -81,13 +81,13 @@ class GroupService(
         val memberships = userGroups.membersOfGroup(groupId)
         // Resolve display names per member. Skip any row whose user vanished (shouldn't happen via FK cascade).
         val members = memberships.mapNotNull { m ->
-            val u = users.userByUsername(m.userUsername) ?: return@mapNotNull null
-            GroupMember(username = u.username, name = u.name, role = m.role)
+            val u = users.userByEmail(m.email) ?: return@mapNotNull null
+            GroupMember(username = u.username, name = u.name, role = m.role, email = u.email)
         }
         return GroupInfo(
             id = group.id,
             name = group.name,
-            ownerUsername = group.ownerUsername,
+            ownerEmail = group.ownerEmail,
             color = group.color,
             members = members,
         )

@@ -35,7 +35,7 @@ class AuthService(
     {
         data class Success(val authTokens: AuthTokens ) : LoginResult()
         data object Unauthorized: LoginResult()
-        data object EmailNotConfirmed : LoginResult()
+        data class EmailNotConfirmed(val authTokens: AuthTokens) : LoginResult()
     }
     sealed class RegisterResult {
         data class Success(val tokens: AuthTokens) : RegisterResult()
@@ -53,7 +53,7 @@ class AuthService(
         val user = userRepository.userByEmailOrUsername(identifier) ?: return LoginResult.Unauthorized
         if (!PasswordHash.verifyPassword(password, user.password_hash)) return LoginResult.Unauthorized
         if (!user.emailVerified)
-            return LoginResult.EmailNotConfirmed
+            return LoginResult.EmailNotConfirmed(issueTokens(user))
         return LoginResult.Success(issueTokens(user))
     }
 

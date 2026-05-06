@@ -1,7 +1,7 @@
 package homeaq.dothattask.data.DBSchema
 import homeaq.dothattask.Model.PasswordHash
 import homeaq.dothattask.Model.User
-import homeaq.dothattask.data.DBSchema.UsersSchema.Companion.CREATE_TABLE_USERS
+import homeaq.dothattask.data.DBSchema.UsersSchema.Companion.CREATE_TABLE_USERS_H2
 import homeaq.dothattask.data.TableCreationAndSeed.ITableFactory
 import homeaq.dothattask.data.TableCreationAndSeed.ITableSeed
 import java.sql.Connection
@@ -12,7 +12,7 @@ sealed class UsersSchema
 {
     companion object
     {
-        const val CREATE_TABLE_USERS =
+        const val CREATE_TABLE_USERS_H2 =
             "CREATE TABLE IF NOT EXISTS USERS (ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
                     "name VARCHAR(150) NOT NULL, " +
                     "username VARCHAR(150) NOT NULL UNIQUE," +
@@ -43,7 +43,7 @@ sealed class UsersSchema
         // service layer. Unique index allows multiple NULLs on both engines.
         const val ALTER_USERS_ADD_EMAIL_COLUMNS_PG =
             "ALTER TABLE users " +
-                    "ADD COLUMN IF NOT EXISTS email CITEXT," +
+                    "ADD COLUMN IF NOT EXISTS email CITEXT UNIQUE," +
                     "ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE"
 
         const val CREATE_USERS_EMAIL_UNIQUE_INDEX =
@@ -60,7 +60,7 @@ class UserTableFactoryH2 : ITableFactory
         val ALTER_USERS_ADD_REMINDER_LAST_SENT = "ALTER TABLE users ADD COLUMN IF NOT EXISTS reminder_last_sent TIMESTAMP"
         val ALTER_USERS_ADD_REMINDER_LAST_OPENED = "ALTER TABLE users ADD COLUMN IF NOT EXISTS reminder_last_opened TIMESTAMP"
 
-        val ALTER_USERS_ADD_EMAIL = "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(320)"
+        val ALTER_USERS_ADD_EMAIL = "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(320) UNIQUE"
         val ALTER_USERS_ADD_EMAIL_VERIFIED = "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE"
 
         try {
@@ -69,12 +69,12 @@ class UserTableFactoryH2 : ITableFactory
             connection.autoCommit = true
 
             listOf(
-                CREATE_TABLE_USERS,
+                CREATE_TABLE_USERS_H2,
+                ALTER_USERS_ADD_EMAIL,
                 ALTER_USERS_ADD_REMINDER_ENABLED,
                 ALTER_USERS_ADD_REMINDER_CONSECUTIVE_UNOPENED,
                 ALTER_USERS_ADD_REMINDER_LAST_SENT,
                 ALTER_USERS_ADD_REMINDER_LAST_OPENED,
-                ALTER_USERS_ADD_EMAIL,
                 ALTER_USERS_ADD_EMAIL_VERIFIED,
                 UsersSchema.CREATE_USERS_EMAIL_UNIQUE_INDEX,
             ).forEach { sql ->
@@ -104,9 +104,9 @@ class UserTableFactoryPostgres : ITableFactory
             connection.createStatement().use { statement ->
                 //TODO: VERIFY
                 statement.executeUpdate(UsersSchema.CREATE_TABLE_USERS_PG)
+                statement.executeUpdate(UsersSchema.ALTER_USERS_ADD_EMAIL_COLUMNS_PG)
                 statement.executeUpdate(UsersSchema.ALTER_USERS_ADD_REMINDER_COLUMNS)
                 statement.executeUpdate(UsersSchema.CREATE_REMINDER_INDEX)
-                statement.executeUpdate(UsersSchema.ALTER_USERS_ADD_EMAIL_COLUMNS_PG)
                 statement.executeUpdate(UsersSchema.CREATE_USERS_EMAIL_UNIQUE_INDEX)
             }
 
@@ -127,7 +127,7 @@ class UserTableSeedH2() : ITableSeed
     {
         val statement = connection.prepareStatement(
             "MERGE INTO users (name, username, password_hash, email, email_verified) " +
-                    "KEY(username) VALUES (?, ?, ?, ?, ?)"
+                    "KEY(email) VALUES (?, ?, ?, ?, ?)"
         )
 
         (demoUsers() + demoUsersAlt()).forEach {

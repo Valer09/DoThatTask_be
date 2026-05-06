@@ -15,7 +15,7 @@ sealed class EmailVerificationTokensSchema {
                     "expires_at TIMESTAMP NOT NULL," +
                     "used_at TIMESTAMP," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "CONSTRAINT fk_evt_user FOREIGN KEY (user_username) REFERENCES users(username) ON DELETE CASCADE)"
+                    "CONSTRAINT fk_evt_user FOREIGN KEY (user_username) REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE)"
 
         const val CREATE_TABLE_PG =
             "CREATE TABLE IF NOT EXISTS email_verification_tokens (" +
@@ -25,7 +25,7 @@ sealed class EmailVerificationTokensSchema {
                     "expires_at TIMESTAMP NOT NULL," +
                     "used_at TIMESTAMP," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "CONSTRAINT fk_evt_user FOREIGN KEY (user_username) REFERENCES users(username) ON DELETE CASCADE)"
+                    "CONSTRAINT fk_evt_user FOREIGN KEY (user_username) REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE)"
 
         const val CREATE_INDEX_USERNAME =
             "CREATE INDEX IF NOT EXISTS idx_evt_user ON email_verification_tokens(user_username)"

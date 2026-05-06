@@ -9,7 +9,7 @@ sealed class RefreshTokensSchema {
         const val CREATE_TABLE_REFRESH_TOKENS_H2 =
             "CREATE TABLE IF NOT EXISTS REFRESH_TOKENS (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
-                    "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "token_hash VARCHAR(255) NOT NULL UNIQUE," +
                     "issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
                     "expires_at TIMESTAMP NOT NULL," +
@@ -18,7 +18,7 @@ sealed class RefreshTokensSchema {
         const val CREATE_TABLE_REFRESH_TOKENS_PG =
             "CREATE TABLE IF NOT EXISTS REFRESH_TOKENS (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
-                    "user_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "token_hash VARCHAR(255) NOT NULL UNIQUE," +
                     "issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
                     "expires_at TIMESTAMP NOT NULL," +

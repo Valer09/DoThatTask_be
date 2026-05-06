@@ -12,7 +12,7 @@ sealed class UserGroupsSchema {
         // rationale about not relying on a UNIQUE constraint on username.
         const val CREATE_TABLE_USER_GROUPS_H2 =
             "CREATE TABLE IF NOT EXISTS USER_GROUPS (" +
-                    "user_username VARCHAR(150)," +
+                    "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "user_email VARCHAR(150) NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE," +
                     "role INTEGER NOT NULL DEFAULT 1," +
@@ -21,7 +21,7 @@ sealed class UserGroupsSchema {
 
         const val CREATE_TABLE_USER_GROUPS_PG =
             "CREATE TABLE IF NOT EXISTS USER_GROUPS (" +
-                    "user_username CITEXT," +
+                    "user_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "user_email CITEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE," +
                     "role INTEGER NOT NULL DEFAULT 1," +

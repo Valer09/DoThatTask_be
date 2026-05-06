@@ -10,8 +10,8 @@ sealed class InvitesSchema {
             "CREATE TABLE IF NOT EXISTS INVITES (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
                     "group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE," +
-                    "inviter_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
-                    "invitee_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "inviter_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
+                    "invitee_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "status INTEGER NOT NULL DEFAULT 1," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
                     "responded_at TIMESTAMP NULL)"
@@ -23,8 +23,8 @@ sealed class InvitesSchema {
             "CREATE TABLE IF NOT EXISTS INVITES (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
                     "group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE," +
-                    "inviter_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
-                    "invitee_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "inviter_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
+                    "invitee_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "status INTEGER NOT NULL DEFAULT 1," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
                     "responded_at TIMESTAMP NULL)"

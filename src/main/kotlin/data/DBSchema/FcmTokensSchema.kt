@@ -9,7 +9,7 @@ sealed class FcmTokensSchema {
         const val CREATE_TABLE_FCM_TOKENS_H2 =
             "CREATE TABLE IF NOT EXISTS FCM_TOKENS (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
-                    "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "token VARCHAR(2048) NOT NULL UNIQUE," +
                     "platform VARCHAR(32) NOT NULL DEFAULT 'android'," +
                     "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
@@ -17,7 +17,7 @@ sealed class FcmTokensSchema {
         const val CREATE_TABLE_FCM_TOKENS_PG =
             "CREATE TABLE IF NOT EXISTS FCM_TOKENS (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
-                    "user_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "token VARCHAR(2048) NOT NULL UNIQUE," +
                     "platform VARCHAR(32) NOT NULL DEFAULT 'android'," +
                     "created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())"

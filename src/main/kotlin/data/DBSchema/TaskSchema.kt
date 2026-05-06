@@ -17,7 +17,7 @@ sealed class TasksSchema
                     "category INTEGER NOT NULL," +
                     "status INTEGER NOT NULL," +
                     "description VARCHAR(2056)," +
-                    "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE)"
+                    "user_username VARCHAR(150) NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE)"
 
         const val CREATE_TABLE_TASKS_PG =
             "CREATE TABLE IF NOT EXISTS TASKS (ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
@@ -25,7 +25,7 @@ sealed class TasksSchema
                     "category INTEGER NOT NULL," +
                     "status INTEGER NOT NULL," +
                     "description VARCHAR(2056)," +
-                    "user_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE)"
+                    "user_username CITEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE ON UPDATE CASCADE)"
 
         const val ALTER_TASKS_ADD_GROUP_ID =
             "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS group_id INTEGER"
@@ -91,7 +91,7 @@ class TaskTableFactoryH2 : ITableFactory
 
     override fun createTable(connection: Connection)
     {
-        connection.createStatement().executeUpdate(UsersSchema.CREATE_TABLE_USERS)
+        connection.createStatement().executeUpdate(UsersSchema.CREATE_TABLE_USERS_H2)
         connection.createStatement().executeUpdate(TasksSchema.CREATE_TABLE_TASKS)
         connection.createStatement().executeUpdate(TasksSchema.ALTER_TASKS_ADD_GROUP_ID)
         connection.createStatement().executeUpdate(TasksSchema.ALTER_TASKS_ADD_CREATOR_H2)

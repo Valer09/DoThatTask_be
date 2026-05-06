@@ -188,7 +188,9 @@ class AuthService(
         val access = jwt.generateAccessToken(user.username)
         val refresh = jwt.generateRefreshToken()
         refreshTokenRepository.create(user.username, sha256(refresh), jwt.refreshExpiry())
-        val groups = userGroupRepository.groupsOfUser(user.username).map {
+        // Group membership is keyed by email going forward; for legacy users
+        // without an email we get back an empty list (they need a backfill).
+        val groups = userGroupRepository.groupsOfUser(user.email).map {
             GroupSummary(id = it.id, name = it.name, color = it.color)
         }
         return AuthTokens(

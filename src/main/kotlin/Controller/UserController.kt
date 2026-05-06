@@ -27,13 +27,14 @@ fun Application.userRoutes()
                 get("/me") {
                     val principal = call.principal<UserPrincipal>()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
-                    val groups = userGroups.groupsOfUser(principal.getUserName())
+                    val groups = userGroups.groupsOfUser(principal.email)
                         .map { GroupSummary(id = it.id, name = it.name, color = it.color) }
                     call.respond(
                         HttpStatusCode.OK,
                         AuthenticatedUser(
                             username = principal.getUserName(),
                             name = principal.getName(),
+                            email = principal.email,
                             groups = groups,
                         )
                     )
@@ -54,7 +55,7 @@ fun Application.userRoutes()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
                     val gid = call.parameters["groupId"]?.toIntOrNull()
                         ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid groupId")
-                    if (!userGroups.isMember(principal.getUserName(), gid)) {
+                    if (!userGroups.isMember(principal.email, gid)) {
                         return@get call.respond(HttpStatusCode.Forbidden, "You are not a member of this group")
                     }
                     call.respond(

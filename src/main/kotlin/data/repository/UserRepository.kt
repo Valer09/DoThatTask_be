@@ -40,9 +40,15 @@ class UserRepository(private val dataSource: DataSource, factory: ITableFactory,
 
     suspend fun allInGroup(groupId: Int): List<User> = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->
+            // New memberships are keyed by email; legacy rows still expose
+            // user_username. Join on email primarily and fall back via the
+            // username column so both legacy and new rows are returned
+            // without duplicates.
             val stmt = connection.prepareStatement(
-                "SELECT u.name, u.username, u.email FROM users u " +
-                        "JOIN user_groups ug ON ug.user_username = u.username " +
+                "SELECT DISTINCT u.name, u.username, u.email FROM users u " +
+                        "JOIN user_groups ug " +
+                        "  ON (LOWER(ug.user_email) = LOWER(u.email)) " +
+                        "  OR (ug.user_username = u.username) " +
                         "WHERE ug.group_id = ?"
             )
             stmt.setInt(1, groupId)
@@ -53,7 +59,12 @@ class UserRepository(private val dataSource: DataSource, factory: ITableFactory,
                     name = rs.getString("name"),
                     username = rs.getString("username"),
                     password_hash = "better_not",
-                    email = rs.getString("email"),
+                    // Legacy rows may not yet have an email value. We map the
+                    // SQL NULL to "" so the data class load doesn't fail; an
+                    // empty string is a clear sentinel that the row needs a
+                    // backfill before email-keyed features (groups, invites)
+                    // will work for that user.
+                    email = rs.getString("email") ?: "",
                 ))
             }
             result
@@ -93,7 +104,11 @@ class UserRepository(private val dataSource: DataSource, factory: ITableFactory,
         name = rs.getString("name"),
         username = rs.getString("username"),
         password_hash = rs.getString("password_hash"),
-        email = runCatching { rs.getString("email") }.getOrNull(),
+        // Legacy rows may have a NULL email; the runCatching guards against
+        // the case where the column itself doesn't exist (very old DBs that
+        // pre-date the email migration entirely). Empty string sentinel
+        // signals "needs backfill" — see allInGroup() for the same pattern.
+        email = runCatching { rs.getString("email") }.getOrNull() ?: "",
         emailVerified = runCatching { rs.getBoolean("email_verified") }.getOrDefault(false),
     )
 

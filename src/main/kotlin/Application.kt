@@ -121,7 +121,7 @@ fun main(args: Array<String>) {
                 validate { credential ->
                     val username = credential.payload.subject ?: return@validate null
                     val user = userRepository.userByUsername(username) ?: return@validate null
-                    UserPrincipal(user.username, user.name)
+                    UserPrincipal(user.email, user.username, user.name)
                 }
             }
         }

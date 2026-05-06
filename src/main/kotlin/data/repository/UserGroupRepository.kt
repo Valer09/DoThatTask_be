@@ -24,7 +24,7 @@ class UserGroupRepository(
     suspend fun groupsOfUser(email: String): List<Group> = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->
             val stmt = connection.prepareStatement(
-                "SELECT g.id, g.name, g.owner_username, g.color " +
+                "SELECT g.id, g.name, g.owner_email, g.color " +
                         "FROM groups g " +
                         "JOIN user_groups ug ON ug.group_id = g.id " +
                         "WHERE ug.user_email = ? " +
@@ -48,15 +48,15 @@ class UserGroupRepository(
     }
 
     suspend fun addMember(
-        ownerEmail: String,
+        email: String,
         groupId: Int,
         role: GroupRole = GroupRole.MEMBER,
     ): Unit = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->
             val stmt = connection.prepareStatement(
-                "INSERT INTO user_groups (owner_email, group_id, role) VALUES (?, ?, ?)"
+                "INSERT INTO user_groups (user_email, group_id, role) VALUES (?, ?, ?)"
             )
-            stmt.setString(1, ownerEmail.lowercase())
+            stmt.setString(1, email.lowercase())
             stmt.setInt(2, groupId)
             stmt.setInt(3, role.code)
             stmt.executeUpdate()
@@ -77,7 +77,7 @@ class UserGroupRepository(
     suspend fun isMember(email: String, groupId: Int): Boolean = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->
             val stmt = connection.prepareStatement(
-                "SELECT 1 FROM user_groups WHERE owner_email = ? AND group_id = ?"
+                "SELECT 1 FROM user_groups WHERE user_email = ? AND group_id = ?"
             )
             stmt.setString(1, email.lowercase())
             stmt.setInt(2, groupId)
@@ -88,7 +88,8 @@ class UserGroupRepository(
     suspend fun membersOfGroup(groupId: Int): List<UserGroup> = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->
             val stmt = connection.prepareStatement(
-                "SELECT user_username, group_id, role FROM user_groups WHERE group_id = ? ORDER BY joined_at ASC"
+                "SELECT user_username, user_email, group_id, role " +
+                        "FROM user_groups WHERE group_id = ? ORDER BY joined_at ASC"
             )
             stmt.setInt(1, groupId)
             val rs = stmt.executeQuery()
@@ -99,7 +100,7 @@ class UserGroupRepository(
                             userUsername = rs.getString("user_username"),
                             groupId = rs.getInt("group_id"),
                             role = GroupRole.fromCode(rs.getInt("role")),
-                            email =rs.getString("user_email"),
+                            email = rs.getString("user_email"),
                         ),
                     )
                 }

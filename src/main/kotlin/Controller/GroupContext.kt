@@ -22,7 +22,7 @@ suspend fun ApplicationCall.requireGroupId(userGroups: UserGroupRepository): Int
         respond(HttpStatusCode.Unauthorized)
         return null
     }
-    if (!userGroups.isMember(principal.getUserName(), groupId)) {
+    if (!userGroups.isMember(principal.email, groupId)) {
         respond(HttpStatusCode.Forbidden, "You are not a member of this group")
         return null
     }

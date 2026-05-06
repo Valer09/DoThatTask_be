@@ -54,22 +54,28 @@ class GroupsTableFactoryPostgres : ITableFactory {
 
 class GroupsTableSeedH2 : ITableSeed {
     override fun seed(connection: Connection) {
-        var owner = UserTableSeedH2.demoUsers().first().username
+        // Both owner_username (legacy) and owner_email (new) columns exist
+        // and we populate both so a fresh H2 satisfies the NOT NULL on
+        // owner_email and existing tests/queries that still hit
+        // owner_username keep working during the transition.
+        var ownerUser = UserTableSeedH2.demoUsers().first()
         var stmt = connection.prepareStatement(
-            "MERGE INTO groups (name, owner_username, color) KEY(name) VALUES (?, ?, ?)"
+            "MERGE INTO groups (name, owner_username, owner_email, color) KEY(name) VALUES (?, ?, ?, ?)"
         )
         stmt.setString(1, DEMO_GROUP_NAME)
-        stmt.setString(2, owner)
-        stmt.setString(3, GroupsSchema.DEFAULT_COLOR)
+        stmt.setString(2, ownerUser.username)
+        stmt.setString(3, ownerUser.email)
+        stmt.setString(4, GroupsSchema.DEFAULT_COLOR)
         stmt.executeUpdate()
 
-        owner = UserTableSeedH2.demoUsersAlt().first().username
+        ownerUser = UserTableSeedH2.demoUsersAlt().first()
         stmt = connection.prepareStatement(
-            "MERGE INTO groups (name, owner_username, color) KEY(name) VALUES (?, ?, ?)"
+            "MERGE INTO groups (name, owner_username, owner_email, color) KEY(name) VALUES (?, ?, ?, ?)"
         )
         stmt.setString(1, DEMO_GROUP_NAME_ALT)
-        stmt.setString(2, owner)
-        stmt.setString(3, GroupsSchema.DEFAULT_COLOR)
+        stmt.setString(2, ownerUser.username)
+        stmt.setString(3, ownerUser.email)
+        stmt.setString(4, GroupsSchema.DEFAULT_COLOR)
         stmt.executeUpdate()
     }
 

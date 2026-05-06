@@ -149,18 +149,18 @@ class UserTableSeedH2() : ITableSeed
         // Do NOT use in production — passwords are intentionally weak placeholders.
         fun demoUsers(): List<User> {
             val users = listOf(
-                User(name = "Valerio", username = "valerio99", password_hash = PasswordHash.hashPassword("password1")),
-                User(name = "Jasmin", username = "jasmin99", password_hash = PasswordHash.hashPassword("password2")),
-                User(name = "Nico", username = "nico99", password_hash = PasswordHash.hashPassword("password3")),
-                User(name = "Fernanda", username = "fernanda99", password_hash = PasswordHash.hashPassword("password4")),
+                User(name = "Valerio", username = "valerio99", password_hash = PasswordHash.hashPassword("password1"), email = "valerio99@local.test", emailVerified = true),
+                User(name = "Jasmin", username = "jasmin99", password_hash = PasswordHash.hashPassword("password2"), email = "jasmin99@local.test", emailVerified = true),
+                User(name = "Nico", username = "nico99", password_hash = PasswordHash.hashPassword("password3"), email = "nico99@local.test", emailVerified = true),
+                User(name = "Fernanda", username = "fernanda99", password_hash = PasswordHash.hashPassword("password4"), email = "fernanda99@local.test", emailVerified = true),
             )
             return users
         }
 
         fun demoUsersAlt(): List<User> {
             val users = listOf(
-                User(name = "Francesca", username = "francesca99", password_hash = PasswordHash.hashPassword("password5")),
-                User(name = "Paolino", username = "paolino99", password_hash = PasswordHash.hashPassword("password6")),
+                User(name = "Francesca", username = "francesca99", password_hash = PasswordHash.hashPassword("password5"), email = "francesca99@local.test", emailVerified = true),
+                User(name = "Paolino", username = "paolino99", password_hash = PasswordHash.hashPassword("password6"), email = "paolino99@local.test", emailVerified = true),
             )
             return users
         }

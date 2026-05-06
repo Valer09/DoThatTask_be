@@ -43,22 +43,25 @@ class InviteService(
         }
 
         val invitee = users.userByEmail(target)
-            ?: return DataResponse.notFound("No user with username '$target'")
+            ?: return DataResponse.notFound("No user with email '$target'")
 
-        if (userGroups.isMember(invitee.username, groupId)) {
+        // Group membership and pending-invite checks are now keyed by email.
+        if (userGroups.isMember(invitee.email, groupId)) {
             return DataResponse.validationError("User is already in this group")
         }
-        if (invites.existsPending(groupId, invitee.username)) {
+        if (invites.existsPending(groupId, invitee.email)) {
             return DataResponse.validationError("A pending invite already exists for this user in this group")
         }
 
-        val id = invites.create(groupId, inviterEmail, invitee.username)
+        val id = invites.create(groupId, inviterEmail, invitee.email)
         if (id == -1) return DataResponse.databaseError("Unable to create invite")
         val created = invites.byId(id) ?: return DataResponse.databaseError("Invite created but not retrievable")
         val invitationBody = "You received a invitation to join the group ${created.groupName} from ${created.inviterUsername}"
 
+        // FCM tokens are still keyed by username (FcmTokenRepository), so
+        // we look the invitee up and send to their username — not email.
         notification.sendToUser(
-            created.inviteeEmail,
+            invitee.username,
             "Group Invitation",
             invitationBody,
             NotificationData.getNotificationData(NotificationType.GroupInvitation))
@@ -72,13 +75,13 @@ class InviteService(
         return DataResponse.success(created, "Invite sent")
     }
 
-    private suspend fun dispatchInviteEmail(inviteeUsername: String, inviterUsername: String, groupName: String) {
-        val invitee = users.userByUsername(inviteeUsername) ?: return
-        val toEmail = invitee.email?.takeIf { it.isNotBlank() } ?: return
-        val inviter = users.userByUsername(inviterUsername)
+    private suspend fun dispatchInviteEmail(inviteeEmail: String, inviterEmail: String, groupName: String) {
+        val invitee = users.userByEmail(inviteeEmail) ?: return
+        val toEmail = invitee.email.takeIf { it.isNotBlank() } ?: return
+        val inviter = users.userByEmail(inviterEmail)
         // Prefer the inviter's email so the message says exactly who invited
-        // them. Fallback to username if no email is on file (legacy users).
-        val inviterContact = inviter?.email?.takeIf { it.isNotBlank() } ?: inviterUsername
+        // them. Fallback to the raw email param if no record is on file.
+        val inviterContact = inviter?.email?.takeIf { it.isNotBlank() } ?: inviterEmail
         emailService.sendGroupInviteEmail(
             toEmail = toEmail,
             inviteeName = invitee.name,
@@ -87,8 +90,8 @@ class InviteService(
         )
     }
 
-    suspend fun incoming(username: String): DataResponse<List<Invite>> =
-        DataResponse.success(invites.incomingPendingFor(username))
+    suspend fun incoming(email: String): DataResponse<List<Invite>> =
+        DataResponse.success(invites.incomingPendingFor(email))
 
     suspend fun accept(inviteId: Int, email: String): DataResponse<Invite> {
         val invite = invites.byId(inviteId) ?: return DataResponse.notFound("Invite not found")

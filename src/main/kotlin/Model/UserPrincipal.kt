@@ -9,5 +9,4 @@ data class UserPrincipal(
 ) : Principal {
     override fun getName(): String = firstname
     fun getUserName(): String = username
-    fun getEmail(): String = email
 }

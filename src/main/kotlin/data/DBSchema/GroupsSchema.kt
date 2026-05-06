@@ -9,11 +9,19 @@ sealed class GroupsSchema {
     companion object {
         const val DEFAULT_COLOR = "#7E57C2"
 
+        // owner_username is kept as a denormalised "display hint" for the
+        // transition window — the real foreign key is on owner_email.
+        // We deliberately do NOT add `REFERENCES users(username)` here:
+        // older H2 databases were created before users.username had a
+        // UNIQUE constraint, so the FK fails to resolve with
+        //   Constraint "PRIMARY KEY | UNIQUE (USERNAME)" not found
+        // on schema migration. The FK on owner_email plus app-level
+        // checks (groupService.byOwner, etc.) are enough.
         const val CREATE_TABLE_GROUPS_H2 =
             "CREATE TABLE IF NOT EXISTS GROUPS (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
                     "name VARCHAR(150) NOT NULL UNIQUE," +
-                    "owner_username VARCHAR(150) REFERENCES users(username)," +
+                    "owner_username VARCHAR(150)," +
                     "owner_email VARCHAR(150) NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "color VARCHAR(9) NOT NULL DEFAULT '$DEFAULT_COLOR'," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
@@ -22,7 +30,7 @@ sealed class GroupsSchema {
             "CREATE TABLE IF NOT EXISTS GROUPS (" +
                     "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
                     "name VARCHAR(150) NOT NULL UNIQUE," +
-                    "owner_username CITEXT REFERENCES users(username)," +
+                    "owner_username CITEXT," +
                     "owner_email CITEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "color VARCHAR(9) NOT NULL DEFAULT '$DEFAULT_COLOR'," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"

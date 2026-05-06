@@ -6,9 +6,13 @@ import java.sql.Connection
 
 sealed class UserGroupsSchema {
     companion object {
+        // user_username is a denormalised display hint — no FK on it. The
+        // real foreign key is user_email, which always points at a row
+        // whose users.email is unique by index. See GroupsSchema for the
+        // rationale about not relying on a UNIQUE constraint on username.
         const val CREATE_TABLE_USER_GROUPS_H2 =
             "CREATE TABLE IF NOT EXISTS USER_GROUPS (" +
-                    "user_username VARCHAR(150) REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_username VARCHAR(150)," +
                     "user_email VARCHAR(150) NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE," +
                     "role INTEGER NOT NULL DEFAULT 1," +
@@ -17,7 +21,7 @@ sealed class UserGroupsSchema {
 
         const val CREATE_TABLE_USER_GROUPS_PG =
             "CREATE TABLE IF NOT EXISTS USER_GROUPS (" +
-                    "user_username CITEXT REFERENCES users(username) ON DELETE CASCADE," +
+                    "user_username CITEXT," +
                     "user_email CITEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE," +
                     "group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE," +
                     "role INTEGER NOT NULL DEFAULT 1," +

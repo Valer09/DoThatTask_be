@@ -28,7 +28,7 @@ class InviteService(
      * group (multi-group: owners can invite to any group they own; the
      * invitee may already belong to other groups).
      */
-    suspend fun send(inviterEmail: String, groupId: Int, inviteeEmail: String): DataResponse<Invite> {
+    suspend fun send(inviterUsername: String, inviterEmail: String, groupId: Int, inviteeEmail: String): DataResponse<Invite> {
         val target = inviteeEmail.trim()
         if (target.isEmpty()) return DataResponse.validationError("Invitee email cannot be empty")
         if (target.equals(inviterEmail, ignoreCase = true)) {
@@ -52,7 +52,7 @@ class InviteService(
             return DataResponse.validationError("A pending invite already exists for this user in this group")
         }
 
-        val id = invites.create(groupId, inviterEmail, invitee.email)
+        val id = invites.create(groupId, inviterUsername,  inviterEmail, invitee)
         if (id == -1) return DataResponse.databaseError("Unable to create invite")
         val created = invites.byId(id) ?: return DataResponse.databaseError("Invite created but not retrievable")
         val invitationBody = "You received a invitation to join the group ${created.groupName} from ${created.inviterUsername}"

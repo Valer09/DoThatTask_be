@@ -34,7 +34,7 @@ fun Application.inviteRoutes() {
                     try {
                         val body = call.receive<SendInviteRequest>()
 
-                        val response = inviteService.send(principal.email, groupId, body.inviteeEmail)
+                        val response = inviteService.send(principal.username, principal.email, groupId, body.inviteeEmail)
                         when (response.result) {
                             DataResult.SUCCESS -> call.respond(HttpStatusCode.Created, response.data!!)
                             DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, response.message)
@@ -61,7 +61,7 @@ fun Application.inviteRoutes() {
                         ?: return@post call.respond(HttpStatusCode.BadRequest)
                     val principal = call.principal<UserPrincipal>()
                         ?: return@post call.respond(HttpStatusCode.Unauthorized)
-                    val response = inviteService.accept(id, principal.email, principal.email)
+                    val response = inviteService.accept(id, principal.email, principal.username)
                     when (response.result) {
                         DataResult.SUCCESS -> call.respond(HttpStatusCode.OK, response.data!!)
                         DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, response.message)

@@ -51,14 +51,16 @@ class UserGroupRepository(
         email: String,
         groupId: Int,
         role: GroupRole = GroupRole.MEMBER,
+        username: String,
     ): Unit = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->
             val stmt = connection.prepareStatement(
-                "INSERT INTO user_groups (user_email, group_id, role) VALUES (?, ?, ?)"
+                "INSERT INTO user_groups (user_username, user_email, group_id, role) VALUES (?, ?, ?, ?)"
             )
-            stmt.setString(1, email.lowercase())
-            stmt.setInt(2, groupId)
-            stmt.setInt(3, role.code)
+            stmt.setString(1, username.lowercase())
+            stmt.setString(2, email.lowercase())
+            stmt.setInt(3, groupId)
+            stmt.setInt(4, role.code)
             stmt.executeUpdate()
         }
     }

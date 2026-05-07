@@ -28,15 +28,16 @@ class GroupRepository(
         color = getString("color"),
     )
 
-    suspend fun create(name: String, ownerEmail: String, color: String): Int = withContext(Dispatchers.IO) {
+    suspend fun create(name: String, ownerEmail: String, color: String, ownerUsername: String): Int = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->
             val stmt = connection.prepareStatement(
-                "INSERT INTO groups (name, owner_email, color) VALUES (?, ?, ?)",
+                "INSERT INTO groups (name, owner_email, owner_username, color) VALUES (?, ?, ?, ?)",
                 Statement.RETURN_GENERATED_KEYS,
             )
             stmt.setString(1, name)
             stmt.setString(2, ownerEmail.lowercase())
-            stmt.setString(3, color)
+            stmt.setString(3, ownerUsername.lowercase())
+            stmt.setString(4, color)
             stmt.executeUpdate()
             val keys = stmt.generatedKeys
             if (keys.next()) keys.getInt(1) else -1

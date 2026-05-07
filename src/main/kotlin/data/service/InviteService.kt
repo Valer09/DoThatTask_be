@@ -1,6 +1,5 @@
 package homeaq.dothattask.data.service
 
-import homeaq.dothattask.Model.GroupRole
 import homeaq.dothattask.Model.Invite
 import homeaq.dothattask.Model.InviteStatus
 import homeaq.dothattask.Model.NotificationData
@@ -93,7 +92,7 @@ class InviteService(
     suspend fun incoming(email: String): DataResponse<List<Invite>> =
         DataResponse.success(invites.incomingPendingFor(email))
 
-    suspend fun accept(inviteId: Int, email: String): DataResponse<Invite> {
+    suspend fun accept(inviteId: Int, email: String, username: String): DataResponse<Invite> {
         val invite = invites.byId(inviteId) ?: return DataResponse.notFound("Invite not found")
         if (!invite.inviteeEmail.equals(email, ignoreCase = true)) {
             return DataResponse.forbidden("This invite is not addressed to you")
@@ -104,7 +103,7 @@ class InviteService(
         if (userGroups.isMember(email, invite.groupId)) {
             return DataResponse.validationError("You are already a member of this group")
         }
-        userGroups.addMember(email, invite.groupId, GroupRole.MEMBER)
+        userGroups.addMember(email, invite.groupId, username = username)
         invites.updateStatus(inviteId, InviteStatus.ACCEPTED)
         val updated = invites.byId(inviteId) ?: invite
         return DataResponse.success(updated, "Invite accepted")

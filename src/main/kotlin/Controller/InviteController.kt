@@ -61,7 +61,7 @@ fun Application.inviteRoutes() {
                         ?: return@post call.respond(HttpStatusCode.BadRequest)
                     val principal = call.principal<UserPrincipal>()
                         ?: return@post call.respond(HttpStatusCode.Unauthorized)
-                    val response = inviteService.accept(id, principal.email)
+                    val response = inviteService.accept(id, principal.email, principal.email)
                     when (response.result) {
                         DataResult.SUCCESS -> call.respond(HttpStatusCode.OK, response.data!!)
                         DataResult.NOT_FOUND -> call.respond(HttpStatusCode.NotFound, response.message)

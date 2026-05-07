@@ -23,6 +23,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.sessions.clear
+import io.ktor.server.sessions.sessions
 import io.ktor.util.reflect.TypeInfo
 import kotlinx.serialization.json.Json
 import org.koin.ktor.ext.inject
@@ -66,7 +68,7 @@ fun Application.authRoutes() {
                                 }
                             is AuthService.LoginResult.Success ->
                                 {
-                                    runCatching { user.reactivateUserNotification(loginResponse.authTokens?.user?.username ?: return@post call.respond(HttpStatusCode.Unauthorized)) }
+                                    runCatching { user.reactivateUserNotification(loginResponse.authTokens.user.username) }
                                     call.respond(HttpStatusCode.OK, message = loginResponse.authTokens)
                                 }
                             is AuthService.LoginResult.EmailNotConfirmed ->

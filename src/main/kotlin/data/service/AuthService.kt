@@ -84,7 +84,7 @@ class AuthService(
 
         val created = userRepository.create(
             name = name,
-            username = username,
+            username = username.lowercase(),
             passwordHash = PasswordHash.hashPassword(password),
             email = normalisedEmail,
         )

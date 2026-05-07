@@ -31,7 +31,7 @@ fun Application.groupRoutes() {
                         ?: return@post call.respond(HttpStatusCode.Unauthorized)
                     try {
                         val body = call.receive<CreateGroupRequest>()
-                        val response = groupService.create(body.name, principal.email)
+                        val response = groupService.create(body.name, principal.email, principal.username)
                         when (response.result) {
                             DataResult.SUCCESS -> call.respond(HttpStatusCode.Created, response.data!!)
                             DataResult.FORBIDDEN -> call.respond(HttpStatusCode.Conflict, response.message)

@@ -4,6 +4,7 @@ import homeaq.dothattask.Model.Group
 import homeaq.dothattask.Model.GroupInfo
 import homeaq.dothattask.Model.GroupMember
 import homeaq.dothattask.Model.GroupRole
+import homeaq.dothattask.Model.UserPrincipal
 import homeaq.dothattask.data.DataResponse
 import homeaq.dothattask.data.repository.GroupRepository
 import homeaq.dothattask.data.repository.UserGroupRepository
@@ -31,16 +32,16 @@ class GroupService(
         "#EC407A", // pink
     )
 
-    suspend fun create(name: String, ownerEmail: String): DataResponse<GroupInfo> {
+    suspend fun create(name: String, ownerEmail: String, username: String): DataResponse<GroupInfo> {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return DataResponse.validationError("Group name cannot be empty")
         if (groups.byName(trimmed) != null) {
             return DataResponse.validationError("A group with this name already exists")
         }
         val color = palette[userGroups.countAllGroups() % palette.size]
-        val id = groups.create(trimmed, ownerEmail, color)
+        val id = groups.create(trimmed, ownerEmail, color, username)
         if (id == -1) return DataResponse.databaseError("Unable to retrieve the id of the newly created group")
-        userGroups.addMember(ownerEmail, id, GroupRole.ADMIN)
+        userGroups.addMember(ownerEmail, id, GroupRole.ADMIN, username)
         // Every new group automatically inherits the default categories
         // (Social/Career/Health). Custom categories can be added later via
         // POST /api/categories.

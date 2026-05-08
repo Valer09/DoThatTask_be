@@ -11,10 +11,31 @@ class CategoryService(private val categories: CategoryRepository) {
      * category is created (no override color provided by the client).
      */
     private val palette = listOf(
-        "#7E57C2", "#26A69A", "#EF5350", "#42A5F5",
-        "#FFA726", "#66BB6A", "#5C6BC0", "#EC407A",
+        "#7E57C2", // Deep Purple
+        "#26A69A", // Teal
+        "#EF5350", // Red
+        "#42A5F5", // Blue
+        "#FFA726", // Orange
+        "#66BB6A", // Green
+        "#5C6BC0", // Indigo
+        "#EC407A", // Pink
+        "#AB47BC", // Purple
+        "#29B6F6", // Light Blue
+        "#26C6DA", // Cyan
+        "#9CCC65", // Light Green
+        "#D4E157", // Lime
+        "#FFCA28", // Amber
+        "#FF7043", // Deep Orange
+        "#8D6E63", // Brown
+        "#78909C", // Blue Grey
+        "#BDBDBD", // Grey
+        "#F06292", // Pink lighter
+        "#7E57C2", // Purple alt
+        "#3F51B5", // Indigo stronger
+        "#00ACC1", // Cyan stronger
+        "#43A047", // Green stronger
+        "#FB8C00"  // Orange stronger
     )
-
     suspend fun listForGroup(groupId: Int): DataResponse<List<TaskCategory>> =
         DataResponse.success(categories.categoriesForGroup(groupId))
 
@@ -31,6 +52,8 @@ class CategoryService(private val categories: CategoryRepository) {
         val normalized = TaskCategory.normalizeName(rawName)
         if (normalized.isEmpty()) return DataResponse.validationError("Category name cannot be empty")
 
+        val categoriesForGroup = categories.categoriesForGroup(groupId)
+        if(categoriesForGroup.any { it -> it.name.equals(rawName, ignoreCase = true) }) return DataResponse.validationError("This category already exists in the group")
         val existing = categories.byNameInsensitive(normalized)
         val category = existing ?: run {
             val pickedColor = color?.takeIf { it.isNotBlank() }

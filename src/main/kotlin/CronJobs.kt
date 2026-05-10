@@ -14,7 +14,7 @@ import java.time.ZonedDateTime
  * Daily push reminder job.
  *
  * Two configuration knobs in `application.conf`:
- *  - `ktor.fcm.notificationTime` — `"aft"` (17:00) or `"morn"` (09:00)
+ *  - `ktor.fcm.notificationTime` — `"aft"` (17:00) or `"mor"` (09:00)
  *  - `ktor.fcm.timezone` — IANA zone id, defaults to `Europe/Rome`. We
  *    explicitly schedule in this zone so the alarm fires at the wall-clock
  *    hour the operator configured, regardless of the JVM/container default
@@ -27,7 +27,7 @@ fun Application.startDailyReminderJob(notificationService: NotificationService) 
     launch {
         val app = get<Application>()
         val notificationTime = app.environment.config.property("ktor.fcm.notificationTime").getString()
-        val hour = if (notificationTime == "aft") 17 else 9
+        val hour = if (notificationTime == "aft") 15 else 9
         val zoneId = runCatching {
             ZoneId.of(app.environment.config.property("ktor.fcm.timezone").getString())
         }.getOrElse { ZoneId.of("Europe/Rome") }
